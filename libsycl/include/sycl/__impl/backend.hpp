@@ -16,7 +16,7 @@
 #ifndef _LIBSYCL___IMPL_BACKEND_HPP
 #define _LIBSYCL___IMPL_BACKEND_HPP
 
-#include <sycl/__impl/detail/config.hpp>
+#include <sycl/__impl/detail/config.hpp> // namespace macro
 
 _LIBSYCL_BEGIN_NAMESPACE_SYCL
 

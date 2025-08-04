@@ -1,0 +1,13 @@
+#ifndef __SYCL_PARAM_TRAITS_DEPRECATED
+static_assert(false, "__SYCL_PARAM_TRAITS_DEPRECATED is required but not defined");
+#endif
+
+#ifndef __SYCL_PARAM_TRAITS_SPEC
+static_assert(false, "__SYCL_PARAM_TRAITS_SPEC is required but not defined");
+#endif
+
+// 4.6.2.4. Information descriptors, only deprecated entries
+__SYCL_PARAM_TRAITS_DEPRECATED(extensions, "deprecated in SYCL 2020, use device::get_info() with info::device::aspects instead")
+
+// ktikhomi: std::string usage, ABI
+__SYCL_PARAM_TRAITS_SPEC(platform, extensions, std::vector<std::string>, UR_PLATFORM_INFO_EXTENSIONS)
