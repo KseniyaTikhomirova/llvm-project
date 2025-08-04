@@ -8,10 +8,18 @@
 
 #include <sycl/__impl/platform.hpp>
 
+#include <detail/platform_impl.hpp>
+
 #include <stdexcept>
 
 _LIBSYCL_BEGIN_NAMESPACE_SYCL
 
-platform::platform() { throw std::runtime_error("Unimplemented"); }
+platform::platform() {}
+
+backend platform::get_backend() const noexcept { return impl->getBackend(); }
+
+std::vector<platform> platform::get_platforms() {
+  return detail::platform_impl::get_platforms();
+}
 
 _LIBSYCL_END_NAMESPACE_SYCL

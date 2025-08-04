@@ -19,12 +19,16 @@
 #include <sycl/__impl/detail/config.hpp> // namespace macro
 #include <sycl/__impl/info/platform.hpp> // info::platform entries
 
+#include <memory> // std::shared_ptr for impl
 #include <vector> // required in get_platforms
 // #include <string>
 
 _LIBSYCL_BEGIN_NAMESPACE_SYCL
 
 // class device;
+namespace detail {
+class platform_impl;
+} // namespace detail
 
 // 4.6.2. Platform class
 class _LIBSYCL_EXPORT platform {
@@ -59,10 +63,12 @@ public:
   /// Queries this SYCL platform for info.
   ///
   /// The return type depends on information being queried.
-  template <typename Param> typename Param::return_type get_info() const;
+  template <typename Param>
+  typename detail::is_platform_info_desc<Param>::return_type get_info() const;
 
   template <typename Param>
-  typename Param::return_type get_backend_info() const;
+  typename detail::is_backend_info_desc<Param>::return_type
+  get_backend_info() const;
 
   /// Indicates if all of the SYCL devices on this platform have the
   /// given feature.
@@ -88,6 +94,11 @@ public:
   /// \return A std::vector containing all of the platforms from all backends
   /// that are available in the system.
   static std::vector<platform> get_platforms();
+
+private:
+  std::shared_ptr<detail::platform_impl> impl;
+
+  platform(std::shared_ptr<detail::platform_impl> Impl) : impl(Impl) {}
 
 }; // class platform
 

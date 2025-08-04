@@ -27,7 +27,6 @@ _LIBSYCL_BEGIN_NAMESPACE_SYCL
 // A.1. Platform information descriptors
 
 namespace info {
-
 // ktikhomi: to be moved to a common place
 #define __SYCL_PARAM_TRAITS_SPEC(DescType, Desc, ReturnT, UrCode)              \
   struct Desc {                                                                \
@@ -46,7 +45,23 @@ namespace platform {
 #undef __SYCL_PARAM_TRAITS_DEPRECATED
 } // namespace platform
 
+#undef __SYCL_PARAM_TRAITS_SPEC
 } // namespace info
+
+namespace detail {
+template <typename T> struct is_platform_info_desc : std::false_type {};
+
+// ktikhomi: to be moved to a common place
+#define __SYCL_PARAM_TRAITS_SPEC(DescType, Desc, ReturnT, UrCode)              \
+  template <>                                                                  \
+  struct is_##DescType##_info_desc<info::DescType::Desc> : std::true_type {    \
+    using return_type = info::DescType::Desc::return_type;                     \
+  };
+
+#include <sycl/__impl/info/platform.def>
+
+#undef __SYCL_PARAM_TRAITS_SPEC
+} // namespace detail
 
 _LIBSYCL_END_NAMESPACE_SYCL
 

@@ -17,6 +17,7 @@
 #define _LIBSYCL___IMPL_BACKEND_HPP
 
 #include <sycl/__impl/detail/config.hpp> // namespace macro
+#include <type_traits>                   // std::false_type
 
 _LIBSYCL_BEGIN_NAMESPACE_SYCL
 
@@ -28,6 +29,10 @@ enum class backend : char {
   all = 4,
   hip = 6,
 };
+
+namespace detail {
+template <typename T> struct is_backend_info_desc : std::false_type {};
+} // namespace detail
 
 // 4.5.1.1. Type traits backend_traits
 template <backend Backend> class backend_traits;
