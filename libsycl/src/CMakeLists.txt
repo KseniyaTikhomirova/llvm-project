@@ -79,6 +79,7 @@ endfunction(add_sycl_rt_library)
 
 set(LIBSYCL_SOURCES
     "platform.cpp"
+    "detail/platform_impl.cpp"
 )
 
 set(LIB_NAME "sycl")

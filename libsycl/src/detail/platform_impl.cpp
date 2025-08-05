@@ -6,20 +6,17 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include <sycl/__impl/platform.hpp>
+#include <sycl/__impl/detail/config.hpp> // namespace macro
 
 #include <detail/platform_impl.hpp>
 
-#include <stdexcept>
-
 _LIBSYCL_BEGIN_NAMESPACE_SYCL
 
-platform::platform() {}
+namespace detail {
 
-backend platform::get_backend() const noexcept { return impl->getBackend(); }
-
-std::vector<platform> platform::get_platforms() {
-  return detail::platform_impl::getPlatforms();
+std::vector<platform> platform_impl::getPlatforms() {
+  return {};
 }
 
+} // namespace detail
 _LIBSYCL_END_NAMESPACE_SYCL
