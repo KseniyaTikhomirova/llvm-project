@@ -1,0 +1,36 @@
+//===----------------------------------------------------------------------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+///
+/// \file
+/// This file contains the definition of the SYCL 2020 exception_list class
+/// interface (4.13.2.)
+///
+//===----------------------------------------------------------------------===//
+
+// 4.13.2. Exception class interface
+#include <sycl/exception.hpp>
+
+_LIBSYCL_BEGIN_NAMESPACE_SYCL
+
+exception_list::size_type exception_list::size() const { return MList.size(); }
+
+exception_list::iterator exception_list::begin() const { return MList.begin(); }
+
+exception_list::iterator exception_list::end() const { return MList.cend(); }
+
+// void exception_list::PushBack(const_reference Value) {
+//   MList.emplace_back(Value);
+// }
+
+// void exception_list::PushBack(value_type &&Value) {
+//   MList.emplace_back(std::move(Value));
+// }
+
+// void exception_list::Clear() noexcept { MList.clear(); }
+
+_LIBSYCL_END_NAMESPACE_SYCL
