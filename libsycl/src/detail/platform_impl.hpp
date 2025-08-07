@@ -22,6 +22,16 @@ namespace detail {
 
 class platform_impl : public std::enable_shared_from_this<platform_impl> {
 public:
+  /// Constructs platform_impl from a platform handle.
+  ///
+  /// \param Platform is a raw offload library handle representing platform.
+  /// \param Adapter is an offload library handle representing Adapter.
+  //
+  // Platforms can only be created under `GlobalHandler`'s ownership via
+  // `platform_impl::getOrMakePlatformImpl` method.
+  explicit platform_impl(ur_platform_handle_t Platform, adapter_impl &Adapter);
+
+  ~platform_impl() = default;
 
   /// Returns the backend associated with this platform.
   backend getBackend() const noexcept { return MBackend; }
@@ -32,6 +42,7 @@ public:
 
 private:
   ur_platform_handle_t MPlatform {};
+  adapter_impl &MAdapter{};
   backend MBackend;
 };
 

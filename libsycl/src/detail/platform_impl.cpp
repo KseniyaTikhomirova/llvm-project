@@ -8,6 +8,7 @@
 
 #include <sycl/__impl/detail/config.hpp> // namespace macro
 
+#include <detail/adapter_impl.hpp>
 #include <detail/platform_impl.hpp>
 
 _LIBSYCL_BEGIN_NAMESPACE_SYCL
@@ -16,6 +17,18 @@ namespace detail {
 
 std::vector<platform> platform_impl::getPlatforms() {
   return {};
+}
+
+platform_impl::platform_impl(ur_platform_handle_t Platform,
+                             adapter_impl &Adapter)
+    : MPlatform(Platform), MAdapter(Adapter) {
+
+  // Find out backend of the platform
+  ur_backend_t UrBackend = UR_BACKEND_UNKNOWN;
+  Adapter.call_nocheck<UrApiKind::urPlatformGetInfo>(
+      APlatform, UR_PLATFORM_INFO_BACKEND, sizeof(ur_backend_t), &UrBackend,
+      nullptr);
+  MBackend = convertUrBackend(UrBackend);
 }
 
 } // namespace detail
