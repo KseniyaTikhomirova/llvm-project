@@ -96,7 +96,7 @@ public:
   static std::vector<platform> get_platforms();
 
 private:
-  std::shared_ptr<detail::platform_impl> impl;
+  detail::platform_impl *impl = nullptr;
 
   platform(std::shared_ptr<detail::platform_impl> Impl) : impl(Impl) {}
 

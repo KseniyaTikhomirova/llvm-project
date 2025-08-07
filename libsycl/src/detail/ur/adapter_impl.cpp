@@ -109,33 +109,27 @@ void adapter_impl::initializeAdapters(std::vector<adapter_impl *> &Adapters,
 
   UrFuncInfo<UrApiKind::urLoaderConfigCreate> loaderConfigCreateInfo;
   auto loaderConfigCreate =
-      loaderConfigCreateInfo.getFuncPtrFromModule(ur::getURLoaderLibrary());
+      loaderConfigCreateInfo.getFuncPtrFromModule(nullptr);
   UrFuncInfo<UrApiKind::urLoaderConfigEnableLayer> loaderConfigEnableLayerInfo;
   auto loaderConfigEnableLayer =
-      loaderConfigEnableLayerInfo.getFuncPtrFromModule(
-          ur::getURLoaderLibrary());
+      loaderConfigEnableLayerInfo.getFuncPtrFromModule(nullptr);
   UrFuncInfo<UrApiKind::urLoaderConfigRelease> loaderConfigReleaseInfo;
   auto loaderConfigRelease =
-      loaderConfigReleaseInfo.getFuncPtrFromModule(ur::getURLoaderLibrary());
+      loaderConfigReleaseInfo.getFuncPtrFromModule(nullptr);
   UrFuncInfo<UrApiKind::urLoaderConfigSetCodeLocationCallback>
       loaderConfigSetCodeLocationCallbackInfo;
   auto loaderConfigSetCodeLocationCallback =
-      loaderConfigSetCodeLocationCallbackInfo.getFuncPtrFromModule(
-          ur::getURLoaderLibrary());
+      loaderConfigSetCodeLocationCallbackInfo.getFuncPtrFromModule(nullptr);
   UrFuncInfo<UrApiKind::urLoaderInit> loaderInitInfo;
-  auto loaderInit =
-      loaderInitInfo.getFuncPtrFromModule(ur::getURLoaderLibrary());
+  auto loaderInit = loaderInitInfo.getFuncPtrFromModule(nullptr);
   UrFuncInfo<UrApiKind::urAdapterGet> adapterGet_Info;
-  auto adapterGet =
-      adapterGet_Info.getFuncPtrFromModule(ur::getURLoaderLibrary());
+  auto adapterGet = adapterGet_Info.getFuncPtrFromModule(nullptr);
   UrFuncInfo<UrApiKind::urAdapterGetInfo> adapterGetInfoInfo;
-  auto adapterGetInfo =
-      adapterGetInfoInfo.getFuncPtrFromModule(ur::getURLoaderLibrary());
+  auto adapterGetInfo = adapterGetInfoInfo.getFuncPtrFromModule(nullptr);
   UrFuncInfo<UrApiKind::urAdapterSetLoggerCallback>
       adapterSetLoggerCallbackInfo;
   auto adapterSetLoggerCallback =
-      adapterSetLoggerCallbackInfo.getFuncPtrFromModule(
-          ur::getURLoaderLibrary());
+      adapterSetLoggerCallbackInfo.getFuncPtrFromModule(nullptr);
 
   bool OwnLoaderConfig = false;
   // If we weren't provided with a custom config handle create our own.
