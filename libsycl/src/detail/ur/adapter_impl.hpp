@@ -39,19 +39,7 @@ public:
 
   ~adapter_impl() = default;
 
-  void queryLastErrorAndThrow(const sycl::errc &Error) {
-    const char *message = nullptr;
-    int32_t adapter_error = 0;
-    ur_result_t Result = call_nocheck<UrApiKind::urAdapterGetLastError>(
-        MAdapter, &message, &adapter_error);
-    throw sycl::exception(
-        sycl::make_error_code(Error),
-        __SYCL_BACKEND_ERROR_REPORT(MBackend) +
-            sycl::detail::codeToString(Result) +
-            (message ? "\n" + std::string(message) + "(adapter error )" +
-                           std::to_string(adapter_error) + "\n"
-                     : std::string{}));
-  }
+  void queryLastErrorAndThrow(const sycl::errc &Error);
 
   template <sycl::errc errc = sycl::errc::runtime>
   void checkUrResult(ur_result_t InitialResult) const {
@@ -66,19 +54,7 @@ public:
     }
   }
 
-  std::vector<ur_platform_handle_t> &getUrPlatforms() {
-    std::call_once(MPlatformsPopulated, [&]() {
-      uint32_t PlatformCount = 0;
-      call<UrApiKind::urPlatformGet>(MAdapter, 0u, nullptr, &PlatformCount);
-      MUrPlatforms.resize(PlatformCount);
-      if (PlatformCount) {
-        call<UrApiKind::urPlatformGet>(MAdapter, PlatformCount,
-                                       MUrPlatforms.data(), nullptr);
-        LastDeviceIds.resize(PlatformCount);
-      }
-    });
-    return MUrPlatforms;
-  }
+  std::vector<ur_platform_handle_t> &getUrPlatforms();
 
   ur_adapter_handle_t getUrAdapter() { return MAdapter; }
 
@@ -129,65 +105,41 @@ public:
   /// multiple backends as determined by the platforms reported by the adapter.
   bool hasBackend(backend Backend) const { return Backend == MBackend; }
 
-  void release() {
-    auto Res = call_nocheck<UrApiKind::urAdapterRelease>(MAdapter);
-    if (Res == UR_RESULT_ERROR_ADAPTER_SPECIFIC) {
-      // We can't query the adapter for the error message because the adapter
-      // has been released
-      throw sycl::exception(
-          sycl::make_error_code(sycl::errc::runtime),
-          __SYCL_BACKEND_ERROR_REPORT(MBackend) +
-              "Adapter failed to be released and reported "
-              "`UR_RESULT_ERROR_ADAPTER_SPECIFIC`. This should "
-              "never happen, please file a bug.");
-    }
-    // method for excpetion
-    MAdapter = nullptr;
-    checkUrResult(Res);
-  }
+  void release();
 
   // Return the index of a UR platform.
   // Platform must belong to the current adapter.
   // The function is expected to be called in a thread safe manner.
-  int getPlatformId(ur_platform_handle_t Platform) {
-    auto It = std::find(UrPlatforms.begin(), UrPlatforms.end(), Platform);
-    assert(It != UrPlatforms.end());
-    return It - UrPlatforms.begin();
-  }
+  int getPlatformId(ur_platform_handle_t Platform);
 
   // Device ids are consecutive across platforms within a adapter.
   // We need to return the same starting index for the given platform.
   // So, instead of returing the last device id of the given platform,
   // return the last device id of the predecessor platform.
   // The function is expected to be called in a thread safe manner.
-  int getStartingDeviceId(ur_platform_handle_t Platform) {
-    int PlatformId = getPlatformId(Platform);
-    return PlatformId == 0 ? 0 : LastDeviceIds[PlatformId - 1];
-  }
+  int getStartingDeviceId(ur_platform_handle_t Platform);
 
   // set the id of the last device for the given platform
   // The function is expected to be called in a thread safe manner.
-  void setLastDeviceId(ur_platform_handle_t Platform, int Id) {
-    int PlatformId = getPlatformId(Platform);
-    LastDeviceIds[PlatformId] = Id;
-  }
+  void setLastDeviceId(ur_platform_handle_t Platform, int Id);
 
   // Adjust the id of the last device for the given platform.
   // Involved when there is no device on that platform at all.
   // The function is expected to be called in a thread safe manner.
-  void adjustLastDeviceId(ur_platform_handle_t Platform) {
-    int PlatformId = getPlatformId(Platform);
-    if (PlatformId > 0 &&
-        LastDeviceIds[PlatformId] < LastDeviceIds[PlatformId - 1])
-      LastDeviceIds[PlatformId] = LastDeviceIds[PlatformId - 1];
-  }
+  void adjustLastDeviceId(ur_platform_handle_t Platform);
 
-  bool containsUrPlatform(ur_platform_handle_t Platform) {
-    auto It = std::find(UrPlatforms.begin(), UrPlatforms.end(), Platform);
-    return It != UrPlatforms.end();
-  }
+  bool containsUrPlatform(ur_platform_handle_t Platform);
 
   std::shared_ptr<std::mutex> getAdapterMutex() { return MAdapterMutex; }
+
+  static std::vector<adapter_impl *> &
+  getAdapters(ur_loader_config_handle_t LoaderConfig = nullptr);
+
+  static void initializeAdapters(std::vector<adapter_impl *> &Adapters,
+                                 ur_loader_config_handle_t LoaderConfig);
+
+  // Get the adapter serving given backend.
+  template <backend BE> static adapter_impl *&getAdapter();
 
 private:
   ur_adapter_handle_t MAdapter = nullptr;

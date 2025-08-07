@@ -16,7 +16,33 @@ _LIBSYCL_BEGIN_NAMESPACE_SYCL
 namespace detail {
 
 std::vector<platform> platform_impl::getPlatforms() {
-  return {};
+  // See which platform we want to be served by which adapter.
+  // There should be just one adapter serving each backend.
+  std::vector<adapter_impl *> &Adapters = adapter_impl::getAdapters();
+  std::vector<std::pair<platform, adapter_impl *>> PlatformsWithAdapter;
+
+  // Then check backend-specific adapters
+  for (auto &Adapter : Adapters) {
+    const auto &AdapterPlatforms = getAdapterPlatforms(*Adapter);
+    for (const auto &P : AdapterPlatforms) {
+      PlatformsWithAdapter.push_back({P, Adapter});
+    }
+  }
+
+  // For the selected platforms register them with their adapters
+  std::vector<platform> Platforms;
+  for (auto &Platform : PlatformsWithAdapter) {
+    auto &Adapter = Platform.second;
+    std::lock_guard<std::mutex> Guard(*Adapter->getAdapterMutex());
+    Adapter->getPlatformId(getSyclObjImpl(Platform.first)->getHandleRef());
+    Platforms.push_back(Platform.first);
+  }
+
+  // This initializes a function-local variable whose destructor is invoked as
+  // the SYCL shared library is first being unloaded.
+  GlobalHandler::registerStaticVarShutdownHandler();
+
+  return Platforms;
 }
 
 platform_impl::platform_impl(ur_platform_handle_t Platform,
