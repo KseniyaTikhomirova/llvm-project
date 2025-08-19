@@ -17,11 +17,12 @@
 
 #include <sycl/__impl/detail/config.hpp> // namespace macro
 
-#include <exception> // for exception
-// #include <memory>       // for allocator, shared_ptr, make...
+#include <exception>    // for exception
+#include <memory>       // for shared_ptr
 #include <string>       // for string, basic_string, opera...
 #include <system_error> // for error_code, error_category
 #include <type_traits>  // for true_type
+#include <vector>       // for vector in exception_list
 
 _LIBSYCL_BEGIN_NAMESPACE_SYCL
 
@@ -47,20 +48,29 @@ enum class errc : int {
 };
 
 /// Constructs an error code using e and sycl_category()
-__SYCL_EXPORT std::error_code make_error_code(sycl::errc E) noexcept;
+_LIBSYCL_EXPORT std::error_code make_error_code(sycl::errc E) noexcept;
 
 /// Obtains a reference to the static error category object for SYCL errors.
-__SYCL_EXPORT const std::error_category &sycl_category() noexcept;
+_LIBSYCL_EXPORT const std::error_category &sycl_category() noexcept;
+
+namespace detail {
+_LIBSYCL_EXPORT const char *stringifyErrorCode(int32_t error);
+
+inline std::string codeToString(int32_t code) {
+  return std::to_string(code) + " (" + std::string(stringifyErrorCode(code)) +
+         ")";
+}
+} // namespace detail
 
 // Derive from std::exception so uncaught exceptions are printed in c++ default
 // exception handler.
 // 4.13.2. Exception class interface
 /// \ingroup sycl_api
-class __SYCL_EXPORT exception : public virtual std::exception {
+class _LIBSYCL_EXPORT exception : public virtual std::exception {
 public:
   exception(std::error_code, const char *);
   exception(std::error_code Ec, const std::string &Msg)
-      : exception(Ec, nullptr, Msg.c_str()) {}
+      : exception(Ec, Msg.c_str()) {}
 
   exception(std::error_code);
   exception(int EV, const std::error_category &ECat, const std::string &WhatArg)
@@ -68,16 +78,12 @@ public:
   exception(int, const std::error_category &, const char *);
   exception(int, const std::error_category &);
 
-  // context.hpp depends on exception.hpp but we can't define these ctors in
-  // exception.hpp while context is still an incomplete type.
-  // So, definition of ctors that require a context parameter are moved to
-  // context.hpp.
-  exception(context, std::error_code, const std::string &);
-  exception(context, std::error_code, const char *);
-  exception(context, std::error_code);
-  exception(context, int, const std::error_category &, const std::string &);
-  exception(context, int, const std::error_category &, const char *);
-  exception(context, int, const std::error_category &);
+  // exception(context, std::error_code, const std::string &);
+  // exception(context, std::error_code, const char *);
+  // exception(context, std::error_code);
+  // exception(context, int, const std::error_category &, const std::string &);
+  // exception(context, int, const std::error_category &, const char *);
+  // exception(context, int, const std::error_category &);
 
   virtual ~exception();
 
@@ -88,14 +94,15 @@ public:
 
   bool has_context() const noexcept;
 
-  context get_context() const;
+  //  context get_context() const;
 
 private:
-  // ktikhoim: to check Exceptions must be noexcept copy constructible
-  std::vector<char> MMsg;
+  // Exceptions must be noexcept copy constructible, cannot directly store any
+  // contaner
+  std::shared_ptr<char[]> MMessage;
   std::error_code MErrC = make_error_code(sycl::errc::invalid);
   // ktikhomi: why is it shptr to sycl context, not impl? I don't like it
-  std::shared_ptr<context> MContext;
+  // td::shared_ptr<context> MContext;
 protected:
   // base constructor for all SYCL 2020 constructors
   // exception(context *, std::error_code, const std::string);
@@ -109,7 +116,7 @@ protected:
 /// Used as a container for a list of asynchronous exceptions
 ///
 /// \ingroup sycl_api
-class __SYCL_EXPORT exception_list {
+class _LIBSYCL_EXPORT exception_list {
 public:
   using value_type = std::exception_ptr;
   using reference = value_type &;

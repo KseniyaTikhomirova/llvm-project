@@ -6,11 +6,16 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <sycl/__impl/backend.hpp>
 #include <sycl/__impl/detail/config.hpp> // namespace macro
+#include <sycl/__impl/exception.hpp>
 
 #include <ur_api.h>
 
-#include <mutex> // std::call_once
+#include <cassert> // assert
+#include <mutex>   // std::call_once
+
+#include <detail/ur/ur.hpp>
 
 #ifndef _LIBSYCL_ADAPTER_IMPL
 #  define _LIBSYCL_ADAPTER_IMPL
@@ -18,9 +23,6 @@
 _LIBSYCL_BEGIN_NAMESPACE_SYCL
 
 namespace detail {
-
-enum class backend : char;
-
 /// The adapter class provides a unified interface to the underlying low-level
 /// runtimes for the device-agnostic SYCL runtime.
 class adapter_impl {
@@ -39,18 +41,20 @@ public:
 
   ~adapter_impl() = default;
 
-  void queryLastErrorAndThrow(const sycl::errc &Error);
+  void queryLastErrorAndThrow(const sycl::errc &Error) const;
 
   template <sycl::errc errc = sycl::errc::runtime>
   void checkUrResult(ur_result_t InitialResult) const {
     if (InitialResult == UR_RESULT_ERROR_ADAPTER_SPECIFIC) {
       assert(MAdapter);
-      queryLastErrorAndThrow();
+      queryLastErrorAndThrow(errc);
     }
     if (InitialResult != UR_RESULT_SUCCESS) {
-      throw sycl::exception(sycl::make_error_code(errc),
-                            __SYCL_BACKEND_ERROR_REPORT(MBackend) +
-                                sycl::detail::codeToString(InitialResult));
+      throw sycl::exception(
+          sycl::make_error_code(errc),
+          std::string(sycl::detail::get_backend_name(MBackend)) +
+              " backend failed with error: " +
+              sycl::detail::codeToString(InitialResult));
     }
   }
 
@@ -73,7 +77,7 @@ public:
     ur_result_t R = UR_RESULT_SUCCESS;
     if (MAdapter) {
       detail::UrFuncInfo<UrApiOffset> UrApiInfo;
-      auto F = UrApiInfo.getFuncPtr(&UrFuncPtrs);
+      auto F = UrApiInfo.getFuncPtr(&MUrFuncPtrs);
       R = F(std::forward<ArgsT>(Args)...);
     }
     return R;

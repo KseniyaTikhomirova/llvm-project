@@ -78,8 +78,12 @@ function(add_sycl_rt_library LIB_TARGET_NAME LIB_OBJ_NAME LIB_OUTPUT_NAME)
 endfunction(add_sycl_rt_library)
 
 set(LIBSYCL_SOURCES
+    "exception.cpp"
+    "exception_list.cpp"
     "platform.cpp"
+    "detail/global_handler.cpp"
     "detail/platform_impl.cpp"
+    "detail/ur/adapter_impl.cpp"
 )
 
 set(LIB_NAME "sycl")

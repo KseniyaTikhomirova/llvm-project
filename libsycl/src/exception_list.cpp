@@ -13,7 +13,8 @@
 //===----------------------------------------------------------------------===//
 
 // 4.13.2. Exception class interface
-#include <sycl/exception.hpp>
+#include <sycl/__impl/detail/config.hpp>
+#include <sycl/__impl/exception.hpp>
 
 _LIBSYCL_BEGIN_NAMESPACE_SYCL
 

@@ -17,6 +17,7 @@
 
 #include <sycl/__impl/backend.hpp>       // sycl::backend
 #include <sycl/__impl/detail/config.hpp> // namespace macro
+#include <sycl/__impl/detail/impl_utils.hpp>
 #include <sycl/__impl/info/platform.hpp> // info::platform entries
 
 #include <memory> // std::shared_ptr for impl
@@ -64,7 +65,8 @@ public:
   ///
   /// The return type depends on information being queried.
   // template <typename Param>
-  // typename detail::is_platform_info_desc<Param>::return_type get_info() const;
+  // typename detail::is_platform_info_desc<Param>::return_type get_info()
+  // const;
 
   template <typename Param>
   typename detail::is_backend_info_desc<Param>::return_type
@@ -98,8 +100,18 @@ public:
 private:
   detail::platform_impl *impl = nullptr;
 
-  platform(std::shared_ptr<detail::platform_impl> Impl) : impl(Impl) {}
+  platform(detail::platform_impl *Impl) : impl(Impl) {}
 
+  // impl extraction utils:
+  template <class T>
+  friend T detail::createSyclObjFromImpl(
+      std::add_rvalue_reference_t<decltype(T::impl)> ImplObj);
+  template <class T>
+  friend T detail::createSyclObjFromImpl(
+      std::add_lvalue_reference_t<const decltype(T::impl)> ImplObj);
+  template <class Obj>
+  friend const decltype(Obj::impl) &
+  detail::getSyclObjImpl(const Obj &SyclObject);
 }; // class platform
 
 _LIBSYCL_END_NAMESPACE_SYCL

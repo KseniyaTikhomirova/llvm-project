@@ -8,12 +8,37 @@
 
 #include <sycl/__impl/detail/config.hpp> // namespace macro
 
-#include <detail/adapter_impl.hpp>
+#include <detail/global_handler.hpp>
 #include <detail/platform_impl.hpp>
+#include <detail/ur/adapter_impl.hpp>
 
 _LIBSYCL_BEGIN_NAMESPACE_SYCL
 
 namespace detail {
+
+platform_impl *
+platform_impl::getOrMakePlatformImpl(ur_platform_handle_t UrPlatform,
+                                     adapter_impl &Adapter) {
+  platform_impl *Result = nullptr;
+  {
+    const std::lock_guard<std::mutex> Guard(
+        GlobalHandler::instance().getPlatformsMutex());
+
+    std::vector<platform_impl *> &PlatformCache =
+        GlobalHandler::instance().getPlatforms();
+
+    for (const auto &PlatImpl : PlatformCache) {
+      if (PlatImpl->getHandleRef() == UrPlatform)
+        return PlatImpl;
+    }
+
+    // GlobalHandler is responsible of destruction at the end of program.
+    Result = new platform_impl(UrPlatform, Adapter, Adapter.getBackend());
+    PlatformCache.emplace_back(Result);
+  }
+
+  return Result;
+}
 
 std::vector<platform> platform_impl::getPlatforms() {
   // See which platform we want to be served by which adapter.
@@ -23,7 +48,7 @@ std::vector<platform> platform_impl::getPlatforms() {
 
   // Then check backend-specific adapters
   for (auto &Adapter : Adapters) {
-    const auto &AdapterPlatforms = getAdapterPlatforms(*Adapter);
+    const auto &AdapterPlatforms = getAdapterPlatforms(Adapter);
     for (const auto &P : AdapterPlatforms) {
       PlatformsWithAdapter.push_back({P, Adapter});
     }
@@ -38,23 +63,66 @@ std::vector<platform> platform_impl::getPlatforms() {
     Platforms.push_back(Platform.first);
   }
 
-  // This initializes a function-local variable whose destructor is invoked as
-  // the SYCL shared library is first being unloaded.
-  GlobalHandler::registerStaticVarShutdownHandler();
-
   return Platforms;
 }
 
 platform_impl::platform_impl(ur_platform_handle_t Platform,
-                             adapter_impl &Adapter)
-    : MPlatform(Platform), MAdapter(Adapter) {
+                             adapter_impl &Adapter, const backend &Backend)
+    : MPlatform(Platform), MAdapter(Adapter), MBackend(Backend) {}
 
-  // Find out backend of the platform
-  ur_backend_t UrBackend = UR_BACKEND_UNKNOWN;
-  Adapter.call_nocheck<UrApiKind::urPlatformGetInfo>(
-      APlatform, UR_PLATFORM_INFO_BACKEND, sizeof(ur_backend_t), &UrBackend,
-      nullptr);
-  MBackend = convertUrBackend(UrBackend);
+static bool IsBannedPlatform(platform Platform) {
+  // The NVIDIA OpenCL platform is currently not compatible with DPC++
+  // since it is only 1.2 but gets selected by default in many systems
+  // There is also no support on the PTX backend for OpenCL consumption,
+  // and there have been some internal reports.
+  // To avoid problems on default users and deployment of DPC++ on platforms
+  // where CUDA is available, the OpenCL support is disabled.
+  //
+  // There is also no support for the AMD HSA backend for OpenCL consumption,
+  // as well as reported problems with device queries, so AMD OpenCL support
+  // is disabled as well.
+  //
+  // auto IsMatchingOpenCL = [](platform Platform, const std::string_view name)
+  // {
+  //   const bool HasNameMatch = Platform.get_info<info::platform::name>().find(
+  //                                 name) != std::string::npos;
+  //   const auto Backend = detail::getSyclObjImpl(Platform)->getBackend();
+  //   const bool IsMatchingOCL = (HasNameMatch && Backend == backend::opencl);
+  //   return IsMatchingOCL;
+  // };
+  // return IsMatchingOpenCL(Platform, "NVIDIA CUDA") ||
+  //        IsMatchingOpenCL(Platform, "AMD Accelerated Parallel Processing");
+  return false;
+}
+
+std::vector<platform>
+platform_impl::getAdapterPlatforms(adapter_impl *&Adapter) {
+  std::vector<platform> Platforms;
+
+  auto UrPlatforms = Adapter->getUrPlatforms();
+  if (UrPlatforms.empty()) {
+    return Platforms;
+  }
+
+  for (const auto &UrPlatform : UrPlatforms) {
+    platform Platform = detail::createSyclObjFromImpl<platform>(
+        getOrMakePlatformImpl(UrPlatform, *Adapter));
+    if (IsBannedPlatform(Platform))
+      continue;
+    bool HasAnyDevices = false;
+    // Platform.get_devices() increments the device count for the platform
+    // and if the platform is banned (like OpenCL for AMD), it can cause
+    // incorrect device numbering, when used with ONEAPI_DEVICE_SELECTOR.
+    //   HasAnyDevices = !Platform.get_devices(info::device_type::all).empty();
+
+    // The SYCL spec says that a platform has one or more devices. ( SYCL
+    // 2020 4.6.2 ) If we have an empty platform, we don't report it back
+    // from platform::get_platforms().
+    if (HasAnyDevices) {
+      Platforms.push_back(Platform);
+    }
+  }
+  return Platforms;
 }
 
 } // namespace detail

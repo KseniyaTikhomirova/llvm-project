@@ -6,8 +6,10 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include <sycl/__impl/detail/config.hpp> // namespace macro
+#include <sycl/__impl/detail/config.hpp>   // namespace macro
+#include <sycl/__impl/detail/spinlock.hpp> // class SpinLock
 
+#include <mutex>
 #include <vector>
 
 #ifndef _LIBSYCL_GLOBAL_HANDLER
@@ -43,14 +45,17 @@ public:
   GlobalHandler(GlobalHandler &&) = delete;
   GlobalHandler &operator=(const GlobalHandler &) = delete;
 
-  std::vector<std::shared_ptr<platform_impl>> &getPlatforms();
+  std::vector<platform_impl *> &getPlatforms();
+  std::mutex &getPlatformsMutex();
 
   std::vector<adapter_impl *> &getAdapters();
   void unloadAdapters();
 
 private:
   static GlobalHandler *&getInstancePtr();
-  static SpinLock MSyclGlobalHandlerProtector;
+  static SpinLock MInstancePtrProtector;
+
+  friend void shutdown_late();
 
   // Constructor and destructor are declared out-of-line to allow incomplete
   // types as template arguments to unique_ptr.
@@ -66,6 +71,8 @@ private:
   T &getOrCreate(InstWithLock<T> &IWL, Types &&...Args);
 
   InstWithLock<std::vector<platform_impl *>> MPlatforms;
+  InstWithLock<std::mutex> MPlatformsMutex;
+
   InstWithLock<std::vector<adapter_impl *>> MAdapters;
 };
 } // namespace detail

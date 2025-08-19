@@ -6,13 +6,21 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <detail/global_handler.hpp>
 #include <detail/ur/adapter_impl.hpp>
+
+#include <algorithm> // std::find
+#include <iostream>
 
 _LIBSYCL_BEGIN_NAMESPACE_SYCL
 
 namespace detail {
 
-void adapter_impl::queryLastErrorAndThrow(const sycl::errc &Error) {
+#define __SYCL_BACKEND_ERROR_REPORT(backend)                                   \
+  std::string(sycl::detail::get_backend_name(backend)) +                       \
+      " backend failed with error: "
+
+void adapter_impl::queryLastErrorAndThrow(const sycl::errc &Error) const {
   const char *message = nullptr;
   int32_t adapter_error = 0;
   ur_result_t Result = call_nocheck<UrApiKind::urAdapterGetLastError>(
@@ -34,7 +42,7 @@ std::vector<ur_platform_handle_t> &adapter_impl::getUrPlatforms() {
     if (PlatformCount) {
       call<UrApiKind::urPlatformGet>(MAdapter, PlatformCount,
                                      MUrPlatforms.data(), nullptr);
-      LastDeviceIds.resize(PlatformCount);
+      MLastDeviceIds.resize(PlatformCount);
     }
   });
   return MUrPlatforms;
@@ -57,31 +65,31 @@ void adapter_impl::release() {
 }
 
 int adapter_impl::getPlatformId(ur_platform_handle_t Platform) {
-  auto It = std::find(UrPlatforms.begin(), UrPlatforms.end(), Platform);
-  assert(It != UrPlatforms.end());
-  return It - UrPlatforms.begin();
+  auto It = std::find(MUrPlatforms.begin(), MUrPlatforms.end(), Platform);
+  assert(It != MUrPlatforms.end());
+  return It - MUrPlatforms.begin();
 }
 
 int adapter_impl::getStartingDeviceId(ur_platform_handle_t Platform) {
   int PlatformId = getPlatformId(Platform);
-  return PlatformId == 0 ? 0 : LastDeviceIds[PlatformId - 1];
+  return PlatformId == 0 ? 0 : MLastDeviceIds[PlatformId - 1];
 }
 
 void adapter_impl::setLastDeviceId(ur_platform_handle_t Platform, int Id) {
   int PlatformId = getPlatformId(Platform);
-  LastDeviceIds[PlatformId] = Id;
+  MLastDeviceIds[PlatformId] = Id;
 }
 
 void adapter_impl::adjustLastDeviceId(ur_platform_handle_t Platform) {
   int PlatformId = getPlatformId(Platform);
   if (PlatformId > 0 &&
-      LastDeviceIds[PlatformId] < LastDeviceIds[PlatformId - 1])
-    LastDeviceIds[PlatformId] = LastDeviceIds[PlatformId - 1];
+      MLastDeviceIds[PlatformId] < MLastDeviceIds[PlatformId - 1])
+    MLastDeviceIds[PlatformId] = MLastDeviceIds[PlatformId - 1];
 }
 
 bool adapter_impl::containsUrPlatform(ur_platform_handle_t Platform) {
-  auto It = std::find(UrPlatforms.begin(), UrPlatforms.end(), Platform);
-  return It != UrPlatforms.end();
+  auto It = std::find(MUrPlatforms.begin(), MUrPlatforms.end(), Platform);
+  return It != MUrPlatforms.end();
 }
 
 std::vector<adapter_impl *> &
@@ -93,6 +101,7 @@ adapter_impl::getAdapters(ur_loader_config_handle_t LoaderConfig) {
     initializeAdapters(GlobalHandler::instance().getAdapters(), LoaderConfig);
     return true;
   }();
+  std::ignore = Initialized;
 
   return GlobalHandler::instance().getAdapters();
 }
@@ -110,67 +119,33 @@ void adapter_impl::initializeAdapters(std::vector<adapter_impl *> &Adapters,
   UrFuncInfo<UrApiKind::urLoaderConfigCreate> loaderConfigCreateInfo;
   auto loaderConfigCreate =
       loaderConfigCreateInfo.getFuncPtrFromModule(nullptr);
-  UrFuncInfo<UrApiKind::urLoaderConfigEnableLayer> loaderConfigEnableLayerInfo;
-  auto loaderConfigEnableLayer =
-      loaderConfigEnableLayerInfo.getFuncPtrFromModule(nullptr);
+  // UrFuncInfo<UrApiKind::urLoaderConfigEnableLayer>
+  // loaderConfigEnableLayerInfo;
+  //  auto loaderConfigEnableLayer =
+  //      loaderConfigEnableLayerInfo.getFuncPtrFromModule(nullptr);
   UrFuncInfo<UrApiKind::urLoaderConfigRelease> loaderConfigReleaseInfo;
   auto loaderConfigRelease =
       loaderConfigReleaseInfo.getFuncPtrFromModule(nullptr);
-  UrFuncInfo<UrApiKind::urLoaderConfigSetCodeLocationCallback>
-      loaderConfigSetCodeLocationCallbackInfo;
-  auto loaderConfigSetCodeLocationCallback =
-      loaderConfigSetCodeLocationCallbackInfo.getFuncPtrFromModule(nullptr);
+  // UrFuncInfo<UrApiKind::urLoaderConfigSetCodeLocationCallback>
+  //     loaderConfigSetCodeLocationCallbackInfo;
+  // auto loaderConfigSetCodeLocationCallback =
+  //     loaderConfigSetCodeLocationCallbackInfo.getFuncPtrFromModule(nullptr);
   UrFuncInfo<UrApiKind::urLoaderInit> loaderInitInfo;
   auto loaderInit = loaderInitInfo.getFuncPtrFromModule(nullptr);
   UrFuncInfo<UrApiKind::urAdapterGet> adapterGet_Info;
   auto adapterGet = adapterGet_Info.getFuncPtrFromModule(nullptr);
   UrFuncInfo<UrApiKind::urAdapterGetInfo> adapterGetInfoInfo;
   auto adapterGetInfo = adapterGetInfoInfo.getFuncPtrFromModule(nullptr);
-  UrFuncInfo<UrApiKind::urAdapterSetLoggerCallback>
-      adapterSetLoggerCallbackInfo;
-  auto adapterSetLoggerCallback =
-      adapterSetLoggerCallbackInfo.getFuncPtrFromModule(nullptr);
+  // UrFuncInfo<UrApiKind::urAdapterSetLoggerCallback>
+  //     adapterSetLoggerCallbackInfo;
+  // auto adapterSetLoggerCallback =
+  //     adapterSetLoggerCallbackInfo.getFuncPtrFromModule(nullptr);
 
   bool OwnLoaderConfig = false;
   // If we weren't provided with a custom config handle create our own.
   if (!LoaderConfig) {
     CHECK_UR_SUCCESS(loaderConfigCreate(&LoaderConfig))
     OwnLoaderConfig = true;
-  }
-
-  const char *LogOptions = "level:info;output:stdout;flush:info";
-  if (trace(TraceLevel::TRACE_CALLS)) {
-#ifdef _WIN32
-    _putenv_s("UR_LOG_TRACING", LogOptions);
-#else
-    setenv("UR_LOG_TRACING", LogOptions, 1);
-#endif
-    CHECK_UR_SUCCESS(loaderConfigEnableLayer(LoaderConfig, "UR_LAYER_TRACING"));
-  }
-
-  if (trace(TraceLevel::TRACE_BASIC)) {
-#ifdef _WIN32
-    _putenv_s("UR_LOG_LOADER", LogOptions);
-#else
-    setenv("UR_LOG_LOADER", LogOptions, 1);
-#endif
-  }
-
-  CHECK_UR_SUCCESS(loaderConfigSetCodeLocationCallback(
-      LoaderConfig, codeLocationCallback, nullptr));
-
-  switch (ProgramManager::getInstance().kernelUsesSanitizer()) {
-  case SanitizerType::AddressSanitizer:
-    CHECK_UR_SUCCESS(loaderConfigEnableLayer(LoaderConfig, "UR_LAYER_ASAN"));
-    break;
-  case SanitizerType::MemorySanitizer:
-    CHECK_UR_SUCCESS(loaderConfigEnableLayer(LoaderConfig, "UR_LAYER_MSAN"));
-    break;
-  case SanitizerType::ThreadSanitizer:
-    CHECK_UR_SUCCESS(loaderConfigEnableLayer(LoaderConfig, "UR_LAYER_TSAN"));
-    break;
-  default:
-    break;
   }
 
   ur_device_init_flags_t device_flags = 0;
@@ -188,17 +163,13 @@ void adapter_impl::initializeAdapters(std::vector<adapter_impl *> &Adapters,
   auto UrToSyclBackend = [](ur_backend_t backend) -> sycl::backend {
     switch (backend) {
     case UR_BACKEND_LEVEL_ZERO:
-      return backend::ext_oneapi_level_zero;
+      return backend::level_zero;
     case UR_BACKEND_OPENCL:
       return backend::opencl;
     case UR_BACKEND_CUDA:
-      return backend::ext_oneapi_cuda;
+      return backend::cuda;
     case UR_BACKEND_HIP:
-      return backend::ext_oneapi_hip;
-    case UR_BACKEND_NATIVE_CPU:
-      return backend::ext_oneapi_native_cpu;
-    case UR_BACKEND_OFFLOAD:
-      return backend::ext_oneapi_offload;
+      return backend::hip;
     default:
       // Throw an exception, this should be unreachable.
       CHECK_UR_SUCCESS(UR_RESULT_ERROR_INVALID_ENUMERATION)
@@ -213,23 +184,17 @@ void adapter_impl::initializeAdapters(std::vector<adapter_impl *> &Adapters,
                                     nullptr));
     auto syclBackend = UrToSyclBackend(adapterBackend);
     Adapters.emplace_back(new adapter_impl(UrAdapter, syclBackend));
-
-    const char *env_value = std::getenv("UR_LOG_CALLBACK");
-    if (env_value == nullptr || std::string(env_value) != "disabled") {
-      CHECK_UR_SUCCESS(adapterSetLoggerCallback(UrAdapter, urLoggerCallback,
-                                                nullptr, UR_LOGGER_LEVEL_WARN));
-    }
   }
 #undef CHECK_UR_SUCCESS
 }
 
 // Get the adapter serving given backend.
-template <backend BE> static adapter_impl *&adapter_impl::getAdapter() {
+template <backend BE> adapter_impl *&adapter_impl::getAdapter() {
   static adapter_impl *adapterPtr = nullptr;
   if (adapterPtr)
     return adapterPtr;
 
-  std::vector<adapter_impl *> Adapters = ur::initializeUr();
+  std::vector<adapter_impl *> Adapters = getAdapters();
   for (auto &P : Adapters)
     if (P->hasBackend(BE)) {
       adapterPtr = P;
@@ -239,25 +204,10 @@ template <backend BE> static adapter_impl *&adapter_impl::getAdapter() {
   throw exception(errc::runtime, "ur::getAdapter couldn't find adapter");
 }
 
-template adapter_impl *&getAdapter<backend::opencl>();
-template adapter_impl *&getAdapter<backend::level_zero>();
-template adapter_impl *&getAdapter<backend::cuda>();
-template adapter_impl *&getAdapter<backend::hip>();
-
-private:
-ur_adapter_handle_t MAdapter = nullptr;
-backend MBackend;
-// Mutex to guard UrPlatforms and LastDeviceIds.
-std::shared_ptr<std::mutex> MAdapterMutex;
-// vector of UrPlatforms that belong to this adapter
-std::once_flag MPlatformsPopulated;
-std::vector<ur_platform_handle_t> MUrPlatforms;
-// represents the unique ids of the last device of each platform
-// index of this vector corresponds to the index in UrPlatforms vector.
-std::vector<int> MLastDeviceIds;
-
-UrFuncPtrMapT MUrFuncPtrs;
-}; // class adapter_impl
+template <> adapter_impl *&adapter_impl::getAdapter<backend::opencl>();
+template <> adapter_impl *&adapter_impl::getAdapter<backend::level_zero>();
+template <> adapter_impl *&adapter_impl::getAdapter<backend::cuda>();
+template <> adapter_impl *&adapter_impl::getAdapter<backend::hip>();
 
 } // namespace detail
 _LIBSYCL_END_NAMESPACE_SYCL

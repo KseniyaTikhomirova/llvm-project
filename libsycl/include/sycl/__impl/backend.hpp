@@ -16,6 +16,7 @@
 #ifndef _LIBSYCL___IMPL_BACKEND_HPP
 #define _LIBSYCL___IMPL_BACKEND_HPP
 
+#include <string_view>
 #include <sycl/__impl/detail/config.hpp> // namespace macro
 #include <type_traits>                   // std::false_type
 
@@ -43,6 +44,25 @@ using backend_input_t =
 template <backend Backend, typename SYCLObjectT>
 using backend_return_t =
     typename backend_traits<Backend>::template return_type<SYCLObjectT>;
+
+namespace detail {
+inline std::string_view get_backend_name(const backend &Backend) {
+  switch (Backend) {
+  case backend::opencl:
+    return "opencl";
+  case backend::level_zero:
+    return "level_zero";
+  case backend::cuda:
+    return "cuda";
+  case backend::hip:
+    return "hip";
+  case backend::all:
+    return "all";
+  }
+
+  return "";
+}
+} // namespace detail
 
 _LIBSYCL_END_NAMESPACE_SYCL
 

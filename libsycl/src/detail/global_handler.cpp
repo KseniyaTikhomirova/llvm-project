@@ -6,9 +6,9 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include <detail/adapter_impl.hpp>
 #include <detail/global_handler.hpp>
 #include <detail/platform_impl.hpp>
+#include <detail/ur/adapter_impl.hpp>
 
 #ifdef _WIN32
 #  include <windows.h>
@@ -20,7 +20,7 @@ _LIBSYCL_BEGIN_NAMESPACE_SYCL
 namespace detail {
 
 using LockGuard = std::lock_guard<SpinLock>;
-SpinLock GlobalHandler::MSyclGlobalHandlerProtector{};
+SpinLock GlobalHandler::MInstancePtrProtector{};
 
 GlobalHandler::GlobalHandler() = default;
 GlobalHandler::~GlobalHandler() = default;
@@ -46,9 +46,14 @@ T &GlobalHandler::getOrCreate(InstWithLock<T> &IWL, Types &&...Args) {
   return *IWL.Inst;
 }
 
-std::vector<std::shared_ptr<platform_impl>> &GlobalHandler::getPlatforms() {
+std::vector<platform_impl *> &GlobalHandler::getPlatforms() {
   static std::vector<platform_impl *> &Platforms = getOrCreate(MPlatforms);
   return Platforms;
+}
+
+std::mutex &GlobalHandler::getPlatformsMutex() {
+  static std::mutex &PlatformMapMutex = getOrCreate(MPlatformsMutex);
+  return PlatformMapMutex;
 }
 
 std::vector<adapter_impl *> &GlobalHandler::getAdapters() {
@@ -62,14 +67,13 @@ void GlobalHandler::unloadAdapters() {
   // there's no need to load and unload adapters.
   //
 
-  if (Platforms.Inst) {
+  if (MPlatforms.Inst) {
     for (const auto &Platform : getPlatforms()) {
       delete Platform;
     }
-    Platforms.Inst.clear();
   }
   if (MAdapters.Inst) {
-    for (const auto &Adapter : MAdapters.Inst) {
+    for (const auto &Adapter : getAdapters()) {
       Adapter->release();
       delete Adapter;
     }
@@ -80,23 +84,33 @@ void GlobalHandler::unloadAdapters() {
   loaderTearDown();
 
   // Clear after unload to avoid uses after unload.
-  MAdapters.Inst.clear();
-
-  MPlatforms.Inst.reset(nullptr);
-  MAdapters.Inst.reset(nullptr);
+  getPlatforms().clear();
+  getAdapters().clear();
 }
 
 void shutdown_late() {
+  const LockGuard Lock{GlobalHandler::MInstancePtrProtector};
+  GlobalHandler *&Handler = GlobalHandler::getInstancePtr();
+  if (!Handler)
+    return;
+
+  // First, release resources, that may access adapters.
+  Handler->MPlatforms.Inst.reset(nullptr);
+
+  // Clear the adapters and reset the instance if it was there.
   Handler->unloadAdapters();
+  if (Handler->MAdapters.Inst)
+    Handler->MAdapters.Inst.reset(nullptr);
 
   // Release the rest of global resources.
   delete Handler;
   Handler = nullptr;
 }
 
-extern "C" __SYCL_EXPORT BOOL WINAPI DllMain(HINSTANCE hinstDLL,
-                                             DWORD fdwReason,
-                                             LPVOID lpReserved) {
+#ifdef _WIN32
+extern "C" _LIBSYCL_EXPORT BOOL WINAPI DllMain(HINSTANCE hinstDLL,
+                                               DWORD fdwReason,
+                                               LPVOID lpReserved) {
   // Perform actions based on the reason for calling.
   switch (fdwReason) {
   case DLL_PROCESS_DETACH:
