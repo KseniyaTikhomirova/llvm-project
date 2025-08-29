@@ -138,3 +138,6 @@ add_subdirectory(src)
 add_custom_target(libsycl-runtime-libraries
   DEPENDS ${LIBSYCL_RT_LIBS}
 )
+
+# SYCL End-to-End tests
+add_subdirectory(test-e2e)
