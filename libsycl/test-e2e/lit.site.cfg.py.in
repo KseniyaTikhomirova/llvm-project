@@ -21,8 +21,7 @@ def get_sycl_tool_path(name):
 config.llvm_main_include_dir = "@LLVM_MAIN_INCLUDE_DIR@"
 config.llvm_tools_dir = os.path.dirname(get_sycl_tool_path("llvm-config"))
 config.lit_tools_dir = os.path.dirname("@TEST_SUITE_LIT@")
-config.sycl_tools_dir = config.llvm_tools_dir
-config.sycl_include = os.path.join(config.dpcpp_root_dir, 'include')
+config.sycl_include = os.path.join(config.sycl_root_dir, 'include')
 config.sycl_obj_root = "@CMAKE_CURRENT_BINARY_DIR@"
 config.sycl_libs_dir =  os.path.join(config.sycl_root_dir, ('bin' if platform.system() == "Windows" else 'lib'))
 
@@ -40,12 +39,8 @@ config.extra_environment = lit_config.params.get("extra_environment", "@LIT_EXTR
 config.extra_system_environment = lit_config.params.get("extra_system_environment", "@LIT_EXTRA_SYSTEM_ENVIRONMENT@")
 config.cxx_flags = lit_config.params.get("cxx_flags", "@LIBSYCL_E2E_CLANG_CXX_FLAGS@")
 config.c_flags = "@CMAKE_C_FLAGS@"
-config.extra_include = "@CMAKE_CURRENT_SOURCE_DIR@/include"
 
 import lit.llvm
 lit.llvm.initialize(lit_config, config)
 
 lit_config.load_config(config, "@CMAKE_CURRENT_SOURCE_DIR@/lit.cfg.py")
-
-from format import SYCLEndToEndTest
-config.test_format = SYCLEndToEndTest()

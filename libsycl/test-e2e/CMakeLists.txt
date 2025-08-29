@@ -99,7 +99,7 @@ endif()
 
 if(LIBSYCL_TEST_E2E_STANDALONE)
   configure_file("${CMAKE_CURRENT_SOURCE_DIR}/lit.site.cfg.py.in"
-                 "${CMAKE_CURRENT_BINARY_DIR}/lit.site.cfg.py")
+                 "${CMAKE_CURRENT_BINARY_DIR}/lit.site.cfg")
 else()
   configure_lit_site_cfg(
     ${CMAKE_CURRENT_SOURCE_DIR}/lit.site.cfg.py.in
@@ -115,10 +115,9 @@ if(NOT LIBSYCL_TEST_E2E_STANDALONE)
   )
 endif() # Standalone.
 
-add_custom_target(check-libsycl-e2e
-  COMMAND ${Python3_EXECUTABLE} ${LLVM_LIT} ${LIBSYCL_E2E_TESTS_LIT_FLAGS} .
-  COMMENT "Running libsycl End-to-End tests"
+add_lit_testsuite(check-libsycl-e2e
+  "Running libsycl E2E tests"
+  ${CMAKE_CURRENT_BINARY_DIR}
+  EXCLUDE_FROM_CHECK_ALL
   DEPENDS ${LIBSYCL_E2E_TEST_DEPS}
-  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-  USES_TERMINAL
-)
+  ARGS "--debug")

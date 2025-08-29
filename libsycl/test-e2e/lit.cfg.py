@@ -27,6 +27,7 @@ config.excludes = ["Inputs"]
 
 # test_source_root: The root path where tests are located.
 config.test_source_root = os.path.dirname(__file__)
+print ("config.test_source_root", config.test_source_root)
 
 # test_exec_root: The root path where tests should be run.
 config.test_exec_root = config.sycl_obj_root
@@ -111,7 +112,7 @@ elif platform.system() == "Windows":
     llvm_config.with_environment("LIB", config.sycl_libs_dir, append_path=True)
     llvm_config.with_environment("PATH", config.sycl_libs_dir, append_path=True)
     llvm_config.with_environment(
-        "LIB", os.path.join(config.dpcpp_root_dir, "lib"), append_path=True
+        "LIB", os.path.join(config.sycl_root_dir, "lib"), append_path=True
     )
 
 elif platform.system() == "Darwin":
@@ -134,8 +135,6 @@ elif platform.system() == "Darwin":
     )
     llvm_config.with_environment("DYLD_LIBRARY_PATH", config.sycl_libs_dir)
 
-llvm_config.with_environment("PATH", config.sycl_tools_dir, append_path=True)
-
 if config.extra_environment:
     lit_config.note("Extra environment variables")
     for env_pair in config.extra_environment.split(","):
@@ -146,9 +145,6 @@ if config.extra_environment:
         else:
             lit_config.note("\tUnset " + var)
             llvm_config.with_environment(var, "")
-
-# Disable the UR logger callback sink during test runs as output to SYCL RT can interfere with some tests relying on standard input/output
-llvm_config.with_environment("UR_LOG_CALLBACK", "disabled")
 
 
 # Temporarily modify environment to be the same that we use when running tests
@@ -473,31 +469,6 @@ else:
 
 config.substitutions.append(("%threads_lib", config.sycl_threads_lib))
 
-if config.run_launcher:
-    config.substitutions.append(("%e2e_tests_root", config.test_source_root))
-
-# Try and find each of these tools in the DPC++ bin directory, in the llvm tools directory
-# or the PATH, in that order. If found, they will be added as substitutions with the full path
-# to the tool. This allows us to support both in-tree builds and standalone
-# builds, where the tools may be externally defined.
-# The DPC++ bin directory is different from the LLVM bin directory when using
-# the Intel Compiler (icx), which puts tools into $dpcpp_root_dir/bin/compiler
-llvm_config.add_tool_substitutions(
-    tools, [config.dpcpp_bin_dir, config.llvm_tools_dir, os.environ.get("PATH", "")]
-)
-for tool in feature_tools:
-    if tool.was_resolved:
-        config.available_features.add(tool.key)
-    else:
-        lit_config.warning("Can't find " + tool.key)
-
-if shutil.which("cmc") is not None:
-    config.available_features.add("cm-compiler")
-
-# Clear build targets when not in build-only, to populate according to devices
-if config.test_mode != "build-only":
-    config.sycl_build_targets = set()
-
 if lit_config.params.get("compatibility_testing", "False") != "False":
     config.substitutions.append(("%clangxx", " true "))
     config.substitutions.append(("%clang", " true "))
@@ -510,10 +481,7 @@ else:
 try:
     import psutil
 
-    if config.test_mode == "run-only":
-        lit_config.maxIndividualTestTime = 300
-    else:
-        lit_config.maxIndividualTestTime = 600
+    lit_config.maxIndividualTestTime = 600
 
 except ImportError:
     pass
