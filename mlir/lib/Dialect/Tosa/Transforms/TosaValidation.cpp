@@ -508,14 +508,15 @@ private:
 
   bool attributeCheckRescale(Operation *op) {
     if (auto rescale = dyn_cast<tosa::RescaleOp>(op)) {
-      if (rescale.getRoundingMode() == "DOUBLE_ROUND" &&
+      if (rescale.getRoundingMode() == RoundingMode::DOUBLE_ROUND &&
           !targetEnv.allows(Extension::doubleround)) {
         op->emitOpError()
             << "failed attribute check: rounding_mode = DOUBLE_ROUND "
             << "requires extension [doubleround]";
         return false;
-      } else if (rescale.getRoundingMode() == "INEXACT_ROUND" &&
-                 !targetEnv.allows(Extension::inexactround)) {
+      }
+      if (rescale.getRoundingMode() == RoundingMode::INEXACT_ROUND &&
+          !targetEnv.allows(Extension::inexactround)) {
         op->emitOpError()
             << "failed attribute check: rounding_mode = INEXACT_ROUND "
             << "requires extension [inexactround]";
@@ -577,7 +578,7 @@ private:
 
 template <>
 bool TosaValidation::levelCheckRanks(tosa::ArgMaxOp tosaOp) {
-  auto op = tosaOp.getOperation();
+  auto *op = tosaOp.getOperation();
   if (!levelCheckRank(op, tosaOp.getInput(), "operand", tosaLevel.MAX_RANK))
     return false;
 
@@ -590,7 +591,7 @@ bool TosaValidation::levelCheckRanks(tosa::ArgMaxOp tosaOp) {
 
 template <>
 bool TosaValidation::levelCheckRanks(tosa::IfOp tosaOp) {
-  auto op = tosaOp.getOperation();
+  auto *op = tosaOp.getOperation();
 
   // Only the condition input has rank limitation.
   if (!levelCheckRank(op, tosaOp.getCondition(), "operand", tosaLevel.MAX_RANK))
@@ -601,7 +602,7 @@ bool TosaValidation::levelCheckRanks(tosa::IfOp tosaOp) {
 
 template <>
 bool TosaValidation::levelCheckRanks(tosa::VariableOp tosaOp) {
-  auto op = tosaOp.getOperation();
+  auto *op = tosaOp.getOperation();
   auto variableType = getVariableType(tosaOp);
   if (!levelCheckRank(op, variableType, "variable type", tosaLevel.MAX_RANK))
     return false;
@@ -611,7 +612,7 @@ bool TosaValidation::levelCheckRanks(tosa::VariableOp tosaOp) {
 
 template <>
 bool TosaValidation::levelCheckSizes(tosa::VariableOp tosaOp) {
-  auto op = tosaOp.getOperation();
+  auto *op = tosaOp.getOperation();
   auto variableType = getVariableType(tosaOp);
   if (!levelCheckSize(op, variableType, "variable type"))
     return false;
@@ -1122,7 +1123,7 @@ bool checkErrorIfRescale(Operation *op) {
   }
 
   // ERROR_IF(!scale32 && (rounding_mode == DOUBLE_ROUND))
-  if (!scale32 && roundingMode == "DOUBLE_ROUND") {
+  if (!scale32 && roundingMode == RoundingMode::DOUBLE_ROUND) {
     op->emitOpError() << "DOUBLE_ROUND is only allowed with scale32=true.";
     return false;
   }
@@ -1256,8 +1257,8 @@ bool checkErrorIfCondIf(Operation *op) {
   //   tosa.yield %arg4
   // }
 
-  return failed(checkIsolatedRegion(op, ifOp.getThenGraph(), "then")) ||
-         failed(checkIsolatedRegion(op, ifOp.getElseGraph(), "else"));
+  return succeeded(checkIsolatedRegion(op, ifOp.getThenGraph(), "then")) &&
+         succeeded(checkIsolatedRegion(op, ifOp.getElseGraph(), "else"));
 }
 
 bool checkErrorIfWhileLoop(Operation *op) {
@@ -1265,8 +1266,8 @@ bool checkErrorIfWhileLoop(Operation *op) {
   if (!whileOp)
     return true;
 
-  return failed(checkIsolatedRegion(op, whileOp.getCondGraph(), "cond")) ||
-         failed(checkIsolatedRegion(op, whileOp.getBodyGraph(), "body"));
+  return succeeded(checkIsolatedRegion(op, whileOp.getCondGraph(), "cond")) &&
+         succeeded(checkIsolatedRegion(op, whileOp.getBodyGraph(), "body"));
 }
 
 bool checkErrorIfScatter(Operation *op) {
@@ -1307,7 +1308,8 @@ bool TosaValidation::isValidElementType(Type type, const bool allowUnsigned) {
   if (isa<FloatType>(type)) {
     return isa<Float32Type, Float16Type, BFloat16Type, Float8E4M3FNType,
                Float8E5M2Type>(type);
-  } else if (auto intTy = dyn_cast<IntegerType>(type)) {
+  }
+  if (auto intTy = dyn_cast<IntegerType>(type)) {
     if (intTy.isSignless()) {
       switch (intTy.getWidth()) {
       case 1:
