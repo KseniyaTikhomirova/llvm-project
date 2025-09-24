@@ -23,6 +23,14 @@
 _LIBSYCL_BEGIN_NAMESPACE_SYCL
 
 namespace detail {
+
+const char *stringifyErrorCode(int32_t error);
+
+inline std::string codeToString(int32_t code) {
+  return std::to_string(code) + " (" + std::string(stringifyErrorCode(code)) +
+         ")";
+}
+
 /// The adapter class provides a unified interface to the underlying low-level
 /// runtimes for the device-agnostic SYCL runtime.
 class adapter_impl {

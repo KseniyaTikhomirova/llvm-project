@@ -53,15 +53,6 @@ _LIBSYCL_EXPORT std::error_code make_error_code(sycl::errc E) noexcept;
 /// Obtains a reference to the static error category object for SYCL errors.
 _LIBSYCL_EXPORT const std::error_category &sycl_category() noexcept;
 
-namespace detail {
-_LIBSYCL_EXPORT const char *stringifyErrorCode(int32_t error);
-
-inline std::string codeToString(int32_t code) {
-  return std::to_string(code) + " (" + std::string(stringifyErrorCode(code)) +
-         ")";
-}
-} // namespace detail
-
 // Derive from std::exception so uncaught exceptions are printed in c++ default
 // exception handler.
 // 4.13.2. Exception class interface
