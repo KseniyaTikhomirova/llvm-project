@@ -2,10 +2,6 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../runtimes/cmake/
 include(WarningFlags)
 
 function(add_sycl_rt_library LIB_TARGET_NAME LIB_OBJ_NAME LIB_OUTPUT_NAME)
-  if (NOT LLVM_ENABLE_PIC)
-    message( FATAL_ERROR "Position-Independent Code generation is required for libsycl shared library" )
-  endif()
-
   cmake_parse_arguments(ARG "" "" "COMPILE_OPTIONS;SOURCES" ${ARGN})
 
   add_library(${LIB_OBJ_NAME} OBJECT ${ARG_SOURCES})
@@ -49,7 +45,7 @@ function(add_sycl_rt_library LIB_TARGET_NAME LIB_OBJ_NAME LIB_OUTPUT_NAME)
     target_compile_options(${LIB_OBJ_NAME} PUBLIC /EHsc)
   else()
     target_compile_options(${LIB_OBJ_NAME} PUBLIC
-                           -fvisibility=hidden -fvisibility-inlines-hidden)
+                           -fvisibility=hidden -fvisibility-inlines-hidden -fPIC)
 
     if (UNIX AND NOT APPLE)
       set(linker_script "${CMAKE_CURRENT_SOURCE_DIR}/ld-version-script.txt")
