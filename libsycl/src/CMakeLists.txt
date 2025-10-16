@@ -16,6 +16,7 @@ function(add_sycl_rt_library LIB_TARGET_NAME LIB_OBJ_NAME LIB_OUTPUT_NAME)
     PRIVATE
       ${CMAKE_CURRENT_SOURCE_DIR}
       ${LIBSYCL_BUILD_INCLUDE_DIR}
+      ${CMAKE_CURRENT_BINARY_DIR}/../../offload/liboffload/API
   )
 
   add_library(${LIB_TARGET_NAME} SHARED
@@ -23,6 +24,7 @@ function(add_sycl_rt_library LIB_TARGET_NAME LIB_OBJ_NAME LIB_OUTPUT_NAME)
 
   add_dependencies(${LIB_OBJ_NAME}
     sycl-headers
+    OffloadAPI
   )
 
   set_target_properties(${LIB_TARGET_NAME} PROPERTIES LINKER_LANGUAGE CXX)
@@ -61,6 +63,7 @@ function(add_sycl_rt_library LIB_TARGET_NAME LIB_OBJ_NAME LIB_OUTPUT_NAME)
     PRIVATE
       ${CMAKE_DL_LIBS}
       ${CMAKE_THREAD_LIBS_INIT}
+      LLVMOffload
   )
 
   set_target_properties(${LIB_TARGET_NAME} PROPERTIES

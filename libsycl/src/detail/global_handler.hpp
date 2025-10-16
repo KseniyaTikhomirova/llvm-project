@@ -19,7 +19,6 @@ _LIBSYCL_BEGIN_NAMESPACE_SYCL
 
 namespace detail {
 class platform_impl;
-class adapter_impl;
 
 /// Wrapper class for global data structures with non-trivial destructors.
 ///
@@ -47,9 +46,6 @@ public:
 
   std::vector<platform_impl *> &getPlatforms();
   std::mutex &getPlatformsMutex();
-
-  std::vector<adapter_impl *> &getAdapters();
-  void unloadAdapters();
 
 private:
   static GlobalHandler *&getInstancePtr();

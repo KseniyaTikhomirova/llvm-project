@@ -8,7 +8,6 @@
 
 #include <detail/global_handler.hpp>
 #include <detail/platform_impl.hpp>
-#include <detail/ur/adapter_impl.hpp>
 
 #ifdef _WIN32
 #  include <windows.h>
@@ -56,51 +55,16 @@ std::mutex &GlobalHandler::getPlatformsMutex() {
   return PlatformMapMutex;
 }
 
-std::vector<adapter_impl *> &GlobalHandler::getAdapters() {
-  static std::vector<adapter_impl *> &Adapters = getOrCreate(MAdapters);
-  return Adapters;
-}
-
-void GlobalHandler::unloadAdapters() {
-  // Call to GlobalHandler::instance().getAdapters() initializes adapters. If
-  // user application has loaded SYCL runtime, and never called any APIs,
-  // there's no need to load and unload adapters.
-  //
-
-  if (MPlatforms.Inst) {
-    for (const auto &Platform : getPlatforms()) {
-      delete Platform;
-    }
-  }
-  if (MAdapters.Inst) {
-    for (const auto &Adapter : getAdapters()) {
-      Adapter->release();
-      delete Adapter;
-    }
-  }
-
-  UrFuncInfo<UrApiKind::urLoaderTearDown> loaderTearDownInfo;
-  auto loaderTearDown = loaderTearDownInfo.getFuncPtrFromModule(nullptr);
-  loaderTearDown();
-
-  // Clear after unload to avoid uses after unload.
-  getPlatforms().clear();
-  getAdapters().clear();
-}
-
 void shutdown_late() {
   const LockGuard Lock{GlobalHandler::MInstancePtrProtector};
   GlobalHandler *&Handler = GlobalHandler::getInstancePtr();
   if (!Handler)
     return;
 
-  // First, release resources, that may access adapters.
+  // First, release resources, that may access offload lib.
   Handler->MPlatforms.Inst.reset(nullptr);
 
-  // Clear the adapters and reset the instance if it was there.
-  Handler->unloadAdapters();
-  if (Handler->MAdapters.Inst)
-    Handler->MAdapters.Inst.reset(nullptr);
+ // TODO deinit offload LIB
 
   // Release the rest of global resources.
   delete Handler;

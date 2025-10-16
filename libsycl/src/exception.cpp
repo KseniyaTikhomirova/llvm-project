@@ -18,8 +18,6 @@
 #include <sycl/__impl/detail/config.hpp>
 #include <sycl/__impl/exception.hpp>
 
-#include <ur_api.h>
-
 #include <cstring>
 // #include <sstream>
 

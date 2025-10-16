@@ -20,7 +20,6 @@
 
 #include <sycl/__impl/detail/config.hpp>            // namespace macro
 #include <sycl/__impl/detail/macro_definitions.hpp> // __SYCL2020_DEPRECATED
-#include <ur_api.h> // all info::platform entries are mapped to UR code
 
 _LIBSYCL_BEGIN_NAMESPACE_SYCL
 
@@ -39,8 +38,9 @@ namespace platform {
 #define __SYCL_PARAM_TRAITS_DEPRECATED(Desc, Message)                          \
   struct __SYCL2020_DEPRECATED(Message) Desc;
 
-#include <sycl/__impl/info/platform.def>
-#include <sycl/__impl/info/platform_deprecated_2020.def>
+  // TODO
+// #include <sycl/__impl/info/platform.def>
+// #include <sycl/__impl/info/platform_deprecated_2020.def>
 
 #undef __SYCL_PARAM_TRAITS_DEPRECATED
 } // namespace platform
@@ -58,7 +58,8 @@ template <typename T> struct is_platform_info_desc : std::false_type {};
     using return_type = info::DescType::Desc::return_type;                     \
   };
 
-#include <sycl/__impl/info/platform.def>
+  // TODO
+// #include <sycl/__impl/info/platform.def>
 
 #undef __SYCL_PARAM_TRAITS_SPEC
 } // namespace detail
