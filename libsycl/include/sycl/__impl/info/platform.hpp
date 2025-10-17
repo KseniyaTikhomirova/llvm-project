@@ -34,15 +34,7 @@ namespace info {
 
 // 4.6.2.4. Information descriptors
 namespace platform {
-
-#define __SYCL_PARAM_TRAITS_DEPRECATED(Desc, Message)                          \
-  struct __SYCL2020_DEPRECATED(Message) Desc;
-
-  // TODO
-// #include <sycl/__impl/info/platform.def>
-// #include <sycl/__impl/info/platform_deprecated_2020.def>
-
-#undef __SYCL_PARAM_TRAITS_DEPRECATED
+ #include <sycl/__impl/info/platform.def>
 } // namespace platform
 
 #undef __SYCL_PARAM_TRAITS_SPEC
@@ -58,8 +50,7 @@ template <typename T> struct is_platform_info_desc : std::false_type {};
     using return_type = info::DescType::Desc::return_type;                     \
   };
 
-  // TODO
-// #include <sycl/__impl/info/platform.def>
+#include <sycl/__impl/info/platform.def>
 
 #undef __SYCL_PARAM_TRAITS_SPEC
 } // namespace detail

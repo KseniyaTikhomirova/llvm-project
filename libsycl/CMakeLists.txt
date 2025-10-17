@@ -121,6 +121,9 @@ set(LIBSYCL_RT_LIBS ${LIBSYCL_SHARED_OUTPUT_NAME})
 
 add_subdirectory(src)
 
+# ktikhomi to check naming
 add_custom_target(libsycl-runtime-libraries
   DEPENDS ${LIBSYCL_RT_LIBS}
 )
+
+add_subdirectory(tools)
