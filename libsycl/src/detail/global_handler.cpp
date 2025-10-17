@@ -1,4 +1,4 @@
-//==--------- global_handler.cpp --- Global objects handler ----------------==//
+//===----------------------------------------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -45,13 +45,21 @@ T &GlobalHandler::getOrCreate(InstWithLock<T> &IWL, Types &&...Args) {
   return *IWL.Inst;
 }
 
-std::vector<platform_impl *> &GlobalHandler::getPlatforms() {
-  static std::vector<platform_impl *> &Platforms = getOrCreate(MPlatforms);
-  return Platforms;
+std::array<detail::OffloadTopology, OL_PLATFORM_BACKEND_LAST> &
+GlobalHandler::getOffloadTopologies() {
+  static std::array<detail::OffloadTopology, OL_PLATFORM_BACKEND_LAST> &Topologies =
+      getOrCreate(MOffloadTopologies);
+  return Topologies;
 }
 
-std::mutex &GlobalHandler::getPlatformsMutex() {
-  static std::mutex &PlatformMapMutex = getOrCreate(MPlatformsMutex);
+std::vector<std::shared_ptr<platform_impl>> &GlobalHandler::getPlatformCache() {
+  static std::vector<std::shared_ptr<platform_impl>> &PlatformCache =
+      getOrCreate(MPlatformCache);
+  return PlatformCache;
+}
+
+std::mutex &GlobalHandler::getPlatformMapMutex() {
+  static std::mutex &PlatformMapMutex = getOrCreate(MPlatformMapMutex);
   return PlatformMapMutex;
 }
 
@@ -62,9 +70,10 @@ void shutdown_late() {
     return;
 
   // First, release resources, that may access offload lib.
-  Handler->MPlatforms.Inst.reset(nullptr);
+  Handler->MPlatformCache.Inst.reset(nullptr);
 
- // TODO deinit offload LIB
+  // No error reporting in shutdown
+  std::ignore = olShutDown();
 
   // Release the rest of global resources.
   delete Handler;
@@ -78,9 +87,6 @@ extern "C" _LIBSYCL_EXPORT BOOL WINAPI DllMain(HINSTANCE hinstDLL,
   // Perform actions based on the reason for calling.
   switch (fdwReason) {
   case DLL_PROCESS_DETACH:
-    if (PrintUrTrace)
-      std::cout << "---> DLL_PROCESS_DETACH syclx.dll\n" << std::endl;
-
     try {
       shutdown_late();
     } catch (std::exception &e) {

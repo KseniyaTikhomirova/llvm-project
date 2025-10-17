@@ -10,6 +10,8 @@
 #include <sycl/__impl/detail/config.hpp> // namespace macro
 #include <sycl/__impl/platform.hpp>      // sycl::platform
 
+#include <detail/offload/offload_utils.hpp>
+
 #include <memory> // std::enable_shared_from_this
 #include <vector> // std::vector
 
@@ -30,7 +32,7 @@ public:
   //
   // Platforms can only be created under `GlobalHandler`'s ownership via
   // `platform_impl::getOrMakePlatformImpl` method.
-  explicit platform_impl(ol_platform_handle_t Platform);
+  explicit platform_impl(ol_platform_handle_t Platform, size_t PlatformIndex);
 
   ~platform_impl() = default;
 
@@ -48,7 +50,9 @@ public:
   /// is in use.
   ///
   /// \return a raw plug-in platform handle.
-  const ol_platform_handle_t &getHandleRef() const { return MPlatform; }
+  const ol_platform_handle_t &getHandleRef() const { return MOffloadPlatform; }
+
+  size_t getPlatformIndex() const { return MOffloadPlatformIndex; }
 
   /// Queries the cache to see if the specified offloading RT platform has been
   /// seen before.  If so, return the cached platform_impl, otherwise create a
@@ -57,11 +61,13 @@ public:
   /// \param Platform is the offloading RT Platform handle representing the
   /// platform
   /// \return the platform_impl representing the offloading RT platform
-  static platform_impl *getOrMakePlatformImpl(ol_platform_handle_t Platform);
+  static platform_impl &getOrMakePlatformImpl(ol_platform_handle_t Platform, size_t PlatformIndex);
 
 private:
-  ol_platform_handle_t MPlatform{};
-  backend MBackend;
+  ol_platform_handle_t MOffloadPlatform{};
+  size_t MOffloadPlatformIndex{};
+  ol_platform_backend_t MOffloadBackend{OL_PLATFORM_BACKEND_UNKNOWN};
+  backend MBackend{};
 };
 
 } // namespace detail

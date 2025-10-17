@@ -78,6 +78,8 @@ set(LIBSYCL_SOURCES
     "platform.cpp"
     "detail/global_handler.cpp"
     "detail/platform_impl.cpp"
+    "detail/offload/offload_utils.cpp"
+    "detail/offload/offload_topology.cpp"
 )
 
 set(LIB_NAME "sycl")

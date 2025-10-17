@@ -8,9 +8,12 @@
 
 #include <sycl/__impl/detail/config.hpp>   // namespace macro
 #include <sycl/__impl/detail/spinlock.hpp> // class SpinLock
+#include <detail/offload/offload_topology.hpp>
 
 #include <mutex>
 #include <vector>
+#include <memory>
+#include <array>
 
 #ifndef _LIBSYCL_GLOBAL_HANDLER
 #  define _LIBSYCL_GLOBAL_HANDLER
@@ -44,8 +47,12 @@ public:
   GlobalHandler(GlobalHandler &&) = delete;
   GlobalHandler &operator=(const GlobalHandler &) = delete;
 
-  std::vector<platform_impl *> &getPlatforms();
-  std::mutex &getPlatformsMutex();
+  // Offload topologies (one per backend) discovered from liboffload.
+  std::array<detail::OffloadTopology, OL_PLATFORM_BACKEND_LAST> &
+  getOffloadTopologies();
+
+  std::mutex &getPlatformMapMutex();
+  std::vector<std::shared_ptr<platform_impl>> &getPlatformCache();
 
 private:
   static GlobalHandler *&getInstancePtr();
@@ -66,8 +73,10 @@ private:
   template <typename T, typename... Types>
   T &getOrCreate(InstWithLock<T> &IWL, Types &&...Args);
 
-  InstWithLock<std::vector<platform_impl *>> MPlatforms;
-  InstWithLock<std::mutex> MPlatformsMutex;
+  InstWithLock<std::array<detail::OffloadTopology, OL_PLATFORM_BACKEND_LAST>>
+      MOffloadTopologies;
+  InstWithLock<std::vector<std::shared_ptr<platform_impl>>> MPlatformCache;
+  InstWithLock<std::mutex> MPlatformMapMutex;
 };
 } // namespace detail
 _LIBSYCL_END_NAMESPACE_SYCL

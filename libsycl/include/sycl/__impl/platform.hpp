@@ -98,9 +98,9 @@ public:
   static std::vector<platform> get_platforms();
 
 private:
-  detail::platform_impl *impl = nullptr;
+  std::shared_ptr<detail::platform_impl> impl;
 
-  platform(detail::platform_impl *Impl) : impl(Impl) {}
+  platform(std::shared_ptr<detail::platform_impl> Impl) : impl(Impl) {}
 
   // impl extraction utils:
   template <class T>
