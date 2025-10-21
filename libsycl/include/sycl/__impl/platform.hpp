@@ -64,13 +64,16 @@ public:
   /// Queries this SYCL platform for info.
   ///
   /// The return type depends on information being queried.
-  // template <typename Param>
-  // typename detail::is_platform_info_desc<Param>::return_type get_info()
-  // const;
-
   template <typename Param>
-  typename detail::is_backend_info_desc<Param>::return_type
-  get_backend_info() const;
+  typename detail::is_platform_info_desc<Param>::return_type get_info()
+  const
+  {
+    return get_info_impl<Param>();
+  }
+
+  // template <typename Param>
+  // typename detail::is_backend_info_desc<Param>::return_type
+  // get_backend_info() const;
 
   /// Indicates if all of the SYCL devices on this platform have the
   /// given feature.
@@ -101,6 +104,10 @@ private:
   std::shared_ptr<detail::platform_impl> impl;
 
   platform(std::shared_ptr<detail::platform_impl> Impl) : impl(Impl) {}
+
+  template <typename Param>
+  typename detail::is_platform_info_desc<Param>::return_type
+  get_info_impl() const;
 
   // impl extraction utils:
   template <class T>

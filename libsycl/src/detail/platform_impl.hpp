@@ -10,10 +10,13 @@
 #include <sycl/__impl/detail/config.hpp> // namespace macro
 #include <sycl/__impl/platform.hpp>      // sycl::platform
 
-#include <detail/offload/offload_utils.hpp>
+#include "detail/offload/offload_utils.hpp"
+#include "detail/offload/info_code.hpp"
 
 #include <memory> // std::enable_shared_from_this
 #include <vector> // std::vector
+#include <string> 
+#include <type_traits> // std::is_same
 
 #include <OffloadAPI.h> // ol_platform_handle_t
 
@@ -62,6 +65,21 @@ public:
   /// platform
   /// \return the platform_impl representing the offloading RT platform
   static platform_impl &getOrMakePlatformImpl(ol_platform_handle_t Platform, size_t PlatformIndex);
+
+  
+  /// Queries this SYCL platform for info.
+  ///
+  /// The return type depends on information being queried.
+  template <typename Param> typename Param::return_type get_info() const {
+    // for now we have only std::string properties
+    static_assert(std::is_same_v<typename Param::return_type, std::string>);
+    size_t ExpectedSize = 0;
+    call_and_throw(olGetPlatformInfoSize, MOffloadPlatform, detail::OffloadInfoCode<Param>::value, &ExpectedSize);
+    std::string Result;
+    Result.resize(ExpectedSize - 1);
+    call_and_throw(olGetPlatformInfo, MOffloadPlatform, detail::OffloadInfoCode<Param>::value, ExpectedSize, Result.data());
+    return Result;
+  }
 
 private:
   ol_platform_handle_t MOffloadPlatform{};

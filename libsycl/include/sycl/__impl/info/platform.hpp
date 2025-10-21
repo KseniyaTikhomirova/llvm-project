@@ -27,7 +27,7 @@ _LIBSYCL_BEGIN_NAMESPACE_SYCL
 
 namespace info {
 // ktikhomi: to be moved to a common place
-#define __SYCL_PARAM_TRAITS_SPEC(DescType, Desc, ReturnT, UrCode)              \
+#define __SYCL_PARAM_TRAITS_SPEC(DescType, Desc, ReturnT, OffloadCode)              \
   struct Desc {                                                                \
     using return_type = ReturnT;                                               \
   };
@@ -44,7 +44,7 @@ namespace detail {
 template <typename T> struct is_platform_info_desc : std::false_type {};
 
 // ktikhomi: to be moved to a common place
-#define __SYCL_PARAM_TRAITS_SPEC(DescType, Desc, ReturnT, UrCode)              \
+#define __SYCL_PARAM_TRAITS_SPEC(DescType, Desc, ReturnT, OffloadCode)              \
   template <>                                                                  \
   struct is_##DescType##_info_desc<info::DescType::Desc> : std::true_type {    \
     using return_type = info::DescType::Desc::return_type;                     \
