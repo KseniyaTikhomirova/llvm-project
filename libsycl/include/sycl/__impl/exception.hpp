@@ -90,7 +90,10 @@ public:
   //  context get_context() const;
 
 private:
-  std::unique_ptr<char[]> MMessage;
+  // Exceptions must be noexcept copy constructible, so cannot use std::string
+  // directly.
+  // TODO: std::string will be converted to ABI neutral later.
+  std::shared_ptr<std::string> MMessage;
   std::error_code MErrC = make_error_code(sycl::errc::invalid);
 };
 

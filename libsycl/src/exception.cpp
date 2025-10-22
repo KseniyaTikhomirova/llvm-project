@@ -39,11 +39,8 @@ std::error_code make_error_code(sycl::errc Err) noexcept {
 }
 
 // Exception methods implementation
-exception::exception(std::error_code EC, const char *Msg) : MErrC(EC) {
-  size_t length = strlen(Msg) + 1;
-  MMessage.reset(new char[length]);
-  std::memcpy(MMessage.get(), Msg, length);
-}
+exception::exception(std::error_code EC, const char *Msg)
+    : MMessage(std::make_shared<std::string>(Msg)), MErrC(EC) {}
 
 exception::~exception() {}
 
@@ -53,7 +50,7 @@ const std::error_category &exception::category() const noexcept {
   return code().category();
 }
 
-const char *exception::what() const noexcept { return MMessage.get(); }
+const char *exception::what() const noexcept { return MMessage->c_str(); }
 
 bool exception::has_context() const noexcept { /*return (MContext != nullptr);*/
   return false;
