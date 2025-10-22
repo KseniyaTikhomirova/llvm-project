@@ -13,13 +13,10 @@
 //===----------------------------------------------------------------------===//
 
 // 4.9.2 Exception Class Interface
-// #include <detail/global_handler.hpp>
-// #include <sycl/context.hpp>
 #include <sycl/__impl/detail/config.hpp>
 #include <sycl/__impl/exception.hpp>
 
 #include <cstring>
-// #include <sstream>
 
 _LIBSYCL_BEGIN_NAMESPACE_SYCL
 
@@ -48,22 +45,6 @@ exception::exception(std::error_code EC, const char *Msg) : MErrC(EC) {
   std::memcpy(MMessage.get(), Msg, length);
 }
 
-exception::exception(std::error_code EC) : exception(EC, "") {}
-
-exception::exception(int EV, const std::error_category &ECat,
-                     const char *WhatArg)
-    : exception({EV, ECat}, WhatArg) {}
-
-exception::exception(int EV, const std::error_category &ECat)
-    : exception({EV, ECat}, "") {}
-
-// exception::exception(std::error_code EC, std::shared_ptr<context>
-// SharedPtrCtx, const char *WhatArg)
-//     : MMsg(std::make_shared<detail::string>(WhatArg)),
-//       MErr(UR_RESULT_ERROR_INVALID_VALUE), MContext(SharedPtrCtx), MErrC(EC)
-//       {
-// }
-
 exception::~exception() {}
 
 const std::error_code &exception::code() const noexcept { return MErrC; }
@@ -77,12 +58,5 @@ const char *exception::what() const noexcept { return MMessage.get(); }
 bool exception::has_context() const noexcept { /*return (MContext != nullptr);*/
   return false;
 }
-
-// context exception::get_context() const {
-//   if (!has_context())
-//     throw sycl::exception(sycl::errc::invalid);
-
-//   return *MContext;
-// }
 
 _LIBSYCL_END_NAMESPACE_SYCL

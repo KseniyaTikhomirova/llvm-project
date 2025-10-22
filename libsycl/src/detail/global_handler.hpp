@@ -6,14 +6,14 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <detail/offload/offload_topology.hpp>
 #include <sycl/__impl/detail/config.hpp>   // namespace macro
 #include <sycl/__impl/detail/spinlock.hpp> // class SpinLock
-#include <detail/offload/offload_topology.hpp>
 
+#include <array>
+#include <memory>
 #include <mutex>
 #include <vector>
-#include <memory>
-#include <array>
 
 #ifndef _LIBSYCL_GLOBAL_HANDLER
 #  define _LIBSYCL_GLOBAL_HANDLER
@@ -56,7 +56,6 @@ public:
 
 private:
   static GlobalHandler *&getInstancePtr();
-  static SpinLock MInstancePtrProtector;
 
   friend void shutdown_late();
 

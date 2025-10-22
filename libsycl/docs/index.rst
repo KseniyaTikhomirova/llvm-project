@@ -76,4 +76,12 @@ To build LLVM with libsycl runtime enabled the following script can be used.
         -DCMAKE_BUILD_TYPE=Release
 
   ninja -C $build_llvm install
+
+
+Limitations
+========
+
+Offloading runtime (liboffload) used by SYCL runtime doesn't support Windows now. So Windows support in SYCL RT is not guaranteed and not tested now.
+The limitation to be revised once liboffload will add support of Windows.
+
   

@@ -7,20 +7,18 @@
 //===----------------------------------------------------------------------===//
 
 #ifndef _LIBSYCL_INFO_CODE
-#  define _LIBSYCL_INFO_CODE
+#define _LIBSYCL_INFO_CODE
 
 _LIBSYCL_BEGIN_NAMESPACE_SYCL
-
-//#include <sycl/detail/info_desc_helpers.hpp>
 
 #include <OffloadAPI.h>
 
 namespace detail {
 template <typename T> struct OffloadInfoCode;
 
-#define __SYCL_PARAM_TRAITS_SPEC(DescType, Desc, ReturnT, OffloadCode)              \
+#define __SYCL_PARAM_TRAITS_SPEC(DescType, Desc, ReturnT, OffloadCode)         \
   template <> struct OffloadInfoCode<info::DescType::Desc> {                   \
-    static constexpr auto value = OffloadCode;                                      \
+    static constexpr auto value = OffloadCode;                                 \
   };
 #include <sycl/__impl/info/platform.def>
 #undef __SYCL_PARAM_TRAITS_SPEC

@@ -22,11 +22,9 @@
 
 #include <memory> // std::shared_ptr for impl
 #include <vector> // required in get_platforms
-// #include <string>
 
 _LIBSYCL_BEGIN_NAMESPACE_SYCL
 
-// class device;
 namespace detail {
 class platform_impl;
 } // namespace detail
@@ -36,7 +34,7 @@ class _LIBSYCL_EXPORT platform {
 public:
   /// Constructs a platform object that is a copy of the platform which contains
   /// the device returned by default_selector_v.
-  platform();
+  // platform();
 
   /// Constructs a platform object that is a copy of the platform which contains
   /// the device that is selected by selector.
@@ -65,9 +63,7 @@ public:
   ///
   /// The return type depends on information being queried.
   template <typename Param>
-  typename detail::is_platform_info_desc<Param>::return_type get_info()
-  const
-  {
+  typename detail::is_platform_info_desc<Param>::return_type get_info() const {
     return get_info_impl<Param>();
   }
 

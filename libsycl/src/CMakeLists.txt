@@ -24,7 +24,7 @@ function(add_sycl_rt_library LIB_TARGET_NAME LIB_OBJ_NAME LIB_OUTPUT_NAME)
 
   add_dependencies(${LIB_OBJ_NAME}
     sycl-headers
-    OffloadAPI
+    LLVMOffload
   )
 
   set_target_properties(${LIB_TARGET_NAME} PROPERTIES LINKER_LANGUAGE CXX)
@@ -82,19 +82,7 @@ set(LIBSYCL_SOURCES
     "detail/offload/offload_topology.cpp"
 )
 
-set(LIB_NAME "sycl")
-set(LIB_OUTPUT_NAME "${LIB_NAME}")
-if (CMAKE_SYSTEM_NAME STREQUAL Windows)
-  if (CMAKE_MSVC_RUNTIME_LIBRARY AND (NOT CMAKE_MSVC_RUNTIME_LIBRARY MATCHES "DLL$"))
-      message(FATAL_ERROR "libsycl requires a DLL version of the MSVC CRT.")
-  endif()
-  if ((NOT CMAKE_MSVC_RUNTIME_LIBRARY AND uppercase_CMAKE_BUILD_TYPE STREQUAL "DEBUG")
-      OR (CMAKE_MSVC_RUNTIME_LIBRARY STREQUAL "MultiThreadedDebugDLL"))
-    set(LIB_OUTPUT_NAME "${LIB_OUTPUT_NAME}d")
-  endif()
-endif()
-
-add_sycl_rt_library(${LIB_NAME} sycl_object ${LIB_OUTPUT_NAME}
+add_sycl_rt_library(${LIBSYCL_LIB_NAME} sycl_object ${LIBSYCL_SHARED_OUTPUT_NAME}
                     SOURCES ${LIBSYCL_SOURCES})
 
 install(TARGETS ${LIBSYCL_RT_LIBS}

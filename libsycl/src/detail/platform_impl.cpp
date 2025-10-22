@@ -6,7 +6,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include <sycl/__impl/detail/config.hpp> // namespace macro
+#include <sycl/__impl/detail/config.hpp>     // namespace macro
 #include <sycl/__impl/detail/impl_utils.hpp> // createSyclObjFromImpl
 
 #include <detail/global_handler.hpp>
@@ -17,7 +17,8 @@ _LIBSYCL_BEGIN_NAMESPACE_SYCL
 namespace detail {
 
 platform_impl &
-platform_impl::getOrMakePlatformImpl(ol_platform_handle_t Platform, size_t PlatformIndex) {
+platform_impl::getOrMakePlatformImpl(ol_platform_handle_t Platform,
+                                     size_t PlatformIndex) {
   std::shared_ptr<platform_impl> Result;
   {
     const std::lock_guard<std::mutex> Guard(
@@ -35,7 +36,8 @@ platform_impl::getOrMakePlatformImpl(ol_platform_handle_t Platform, size_t Platf
     // Otherwise make the impl. Our ctor/dtor are private, so std::make_shared
     // needs a bit of help...
     struct creator : platform_impl {
-      creator(ol_platform_handle_t Platform, size_t PlatformIndex) : platform_impl(Platform, PlatformIndex) {}
+      creator(ol_platform_handle_t Platform, size_t PlatformIndex)
+          : platform_impl(Platform, PlatformIndex) {}
     };
     Result = std::make_shared<creator>(Platform, PlatformIndex);
     PlatformCache.emplace_back(Result);
@@ -58,12 +60,14 @@ std::vector<platform> platform_impl::getPlatforms() {
   return Platforms;
 }
 
-platform_impl::platform_impl(ol_platform_handle_t Platform, size_t PlatformIndex)
-      : MOffloadPlatform(Platform), MOffloadPlatformIndex(PlatformIndex) {
-    ol_platform_backend_t Backend = OL_PLATFORM_BACKEND_UNKNOWN;
-    call_and_throw(olGetPlatformInfo, MOffloadPlatform, OL_PLATFORM_INFO_BACKEND, sizeof(Backend), &Backend);
-    MBackend = convertBackend(Backend);
-    MOffloadBackend = Backend;
-  }
+platform_impl::platform_impl(ol_platform_handle_t Platform,
+                             size_t PlatformIndex)
+    : MOffloadPlatform(Platform), MOffloadPlatformIndex(PlatformIndex) {
+  ol_platform_backend_t Backend = OL_PLATFORM_BACKEND_UNKNOWN;
+  call_and_throw(olGetPlatformInfo, MOffloadPlatform, OL_PLATFORM_INFO_BACKEND,
+                 sizeof(Backend), &Backend);
+  MBackend = convertBackend(Backend);
+  MOffloadBackend = Backend;
+}
 } // namespace detail
 _LIBSYCL_END_NAMESPACE_SYCL

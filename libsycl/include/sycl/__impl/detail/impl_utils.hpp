@@ -17,7 +17,7 @@
 
 #include <sycl/__impl/detail/config.hpp> // namespace macro
 
-#include <cassert> // for assert
+#include <cassert>     // for assert
 #include <type_traits> // for add_rvalue_reference_t and others
 #include <utility>     // for forward
 

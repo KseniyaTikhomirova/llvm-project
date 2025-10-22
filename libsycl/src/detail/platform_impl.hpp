@@ -10,13 +10,13 @@
 #include <sycl/__impl/detail/config.hpp> // namespace macro
 #include <sycl/__impl/platform.hpp>      // sycl::platform
 
-#include "detail/offload/offload_utils.hpp"
 #include "detail/offload/info_code.hpp"
+#include "detail/offload/offload_utils.hpp"
 
 #include <memory> // std::enable_shared_from_this
-#include <vector> // std::vector
-#include <string> 
+#include <string>
 #include <type_traits> // std::is_same
+#include <vector>      // std::vector
 
 #include <OffloadAPI.h> // ol_platform_handle_t
 
@@ -32,6 +32,8 @@ public:
   /// Constructs platform_impl from a platform handle.
   ///
   /// \param Platform is a raw offload library handle representing platform.
+  /// \param PlatformIndex is a platform index in a backend (needed for a proper
+  /// indexing in device selector).
   //
   // Platforms can only be created under `GlobalHandler`'s ownership via
   // `platform_impl::getOrMakePlatformImpl` method.
@@ -48,13 +50,14 @@ public:
 
   /// Returns raw underlying offload platform handle.
   ///
-  /// Unlike get() method, this method does not retain handle. It is caller
-  /// responsibility to make sure that platform stays alive while raw handle
-  /// is in use.
+  /// It does not retain handle. It is caller responsibility to make sure that
+  /// platform stays alive while raw handle is in use.
   ///
   /// \return a raw plug-in platform handle.
   const ol_platform_handle_t &getHandleRef() const { return MOffloadPlatform; }
 
+  /// Returns platform index in a backend (needed for a proper indexing in
+  /// device selector).
   size_t getPlatformIndex() const { return MOffloadPlatformIndex; }
 
   /// Queries the cache to see if the specified offloading RT platform has been
@@ -63,10 +66,12 @@ public:
   ///
   /// \param Platform is the offloading RT Platform handle representing the
   /// platform
+  /// \param PlatformIndex is a platform index in a backend (needed for a proper
+  /// indexing in device selector).
   /// \return the platform_impl representing the offloading RT platform
-  static platform_impl &getOrMakePlatformImpl(ol_platform_handle_t Platform, size_t PlatformIndex);
+  static platform_impl &getOrMakePlatformImpl(ol_platform_handle_t Platform,
+                                              size_t PlatformIndex);
 
-  
   /// Queries this SYCL platform for info.
   ///
   /// The return type depends on information being queried.
@@ -74,10 +79,13 @@ public:
     // for now we have only std::string properties
     static_assert(std::is_same_v<typename Param::return_type, std::string>);
     size_t ExpectedSize = 0;
-    call_and_throw(olGetPlatformInfoSize, MOffloadPlatform, detail::OffloadInfoCode<Param>::value, &ExpectedSize);
+    call_and_throw(olGetPlatformInfoSize, MOffloadPlatform,
+                   detail::OffloadInfoCode<Param>::value, &ExpectedSize);
     std::string Result;
     Result.resize(ExpectedSize - 1);
-    call_and_throw(olGetPlatformInfo, MOffloadPlatform, detail::OffloadInfoCode<Param>::value, ExpectedSize, Result.data());
+    call_and_throw(olGetPlatformInfo, MOffloadPlatform,
+                   detail::OffloadInfoCode<Param>::value, ExpectedSize,
+                   Result.data());
     return Result;
   }
 

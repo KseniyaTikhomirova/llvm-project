@@ -63,11 +63,13 @@ public:
   exception(std::error_code Ec, const std::string &Msg)
       : exception(Ec, Msg.c_str()) {}
 
-  exception(std::error_code);
+  exception(std::error_code EC) : exception(EC, "") {}
   exception(int EV, const std::error_category &ECat, const std::string &WhatArg)
       : exception(EV, ECat, WhatArg.c_str()) {}
-  exception(int, const std::error_category &, const char *);
-  exception(int, const std::error_category &);
+  exception(int EV, const std::error_category &ECat, const char *WhatArg)
+      : exception({EV, ECat}, WhatArg) {}
+  exception(int EV, const std::error_category &ECat)
+      : exception({EV, ECat}, "") {}
 
   // exception(context, std::error_code, const std::string &);
   // exception(context, std::error_code, const char *);
@@ -88,20 +90,8 @@ public:
   //  context get_context() const;
 
 private:
-  // Exceptions must be noexcept copy constructible, cannot directly store any
-  // contaner
-  std::shared_ptr<char[]> MMessage;
+  std::unique_ptr<char[]> MMessage;
   std::error_code MErrC = make_error_code(sycl::errc::invalid);
-  // ktikhomi: why is it shptr to sycl context, not impl? I don't like it
-  // td::shared_ptr<context> MContext;
-protected:
-  // base constructor for all SYCL 2020 constructors
-  // exception(context *, std::error_code, const std::string);
-  // exception(std::error_code Ec, std::shared_ptr<context> SharedPtrCtx,
-  //           const std::string &what_arg)
-  //     : exception(Ec, SharedPtrCtx, what_arg.c_str()) {}
-  // exception(std::error_code Ec, std::shared_ptr<context> SharedPtrCtx,
-  //           const char *WhatArg);
 };
 
 /// Used as a container for a list of asynchronous exceptions
@@ -123,10 +113,6 @@ public:
   iterator end() const;
 
 private:
-  // friend class detail::queue_impl;
-  // void PushBack(const_reference Value);
-  // void PushBack(value_type &&Value);
-  // void Clear() noexcept;
   std::vector<std::exception_ptr> MList;
 };
 

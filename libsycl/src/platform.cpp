@@ -14,8 +14,6 @@
 
 _LIBSYCL_BEGIN_NAMESPACE_SYCL
 
-platform::platform() {}
-
 backend platform::get_backend() const noexcept { return impl->getBackend(); }
 
 std::vector<platform> platform::get_platforms() {
@@ -28,8 +26,8 @@ platform::get_info_impl() const {
   return impl->template get_info<Param>();
 }
 
-#define __SYCL_PARAM_TRAITS_SPEC(DescType, Desc, ReturnT, OffloadCode)              \
-  template _LIBSYCL_EXPORT ReturnT                     \
+#define __SYCL_PARAM_TRAITS_SPEC(DescType, Desc, ReturnT, OffloadCode)         \
+  template _LIBSYCL_EXPORT ReturnT                                             \
   platform::get_info_impl<info::platform::Desc>() const;
 
 #include <sycl/__impl/info/platform.def>

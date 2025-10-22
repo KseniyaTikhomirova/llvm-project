@@ -10,8 +10,8 @@
 
 #include <OffloadAPI.h>
 
-#include <vector>
 #include <cassert>
+#include <vector>
 
 #ifndef _LIBSYCL_OFFLOAD_TOPOLOGY
 #  define _LIBSYCL_OFFLOAD_TOPOLOGY
@@ -30,8 +30,8 @@ template <class T> struct range_view {
   size_t size() const { return len; }
 };
 
-
-// Contiguous global storage of platform handlers and device handles (grouped by platform) for a backend.
+// Contiguous global storage of platform handlers and device handles (grouped by
+// platform) for a backend.
 struct OffloadTopology {
   OffloadTopology() : OlBackend(OL_PLATFORM_BACKEND_UNKNOWN) {}
   OffloadTopology(ol_platform_backend_t OlBackend) : OlBackend(OlBackend) {}
@@ -48,8 +48,7 @@ struct OffloadTopology {
   }
 
   // Devices for a specific platform (platform_id is index into Platforms)
-  range_view<ol_device_handle_t>
-  devicesForPlatform(size_t PlatformId) const {
+  range_view<ol_device_handle_t> devicesForPlatform(size_t PlatformId) const {
     if (PlatformId >= PlatformDevices.size())
       return {nullptr, 0};
     const auto R = PlatformDevices[PlatformId];
@@ -65,7 +64,7 @@ struct OffloadTopology {
   // Register new platform and devices into this topology under that platform.
   void
   registerNewPlatformAndDevices(ol_platform_handle_t NewPlatform,
-                                    std::vector<ol_device_handle_t> &&NewDevs) {
+                                std::vector<ol_device_handle_t> &&NewDevs) {
     Platforms.push_back(NewPlatform);
 
     Range R;

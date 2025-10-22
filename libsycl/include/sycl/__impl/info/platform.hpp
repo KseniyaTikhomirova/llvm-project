@@ -15,26 +15,23 @@
 #define _LIBSYCL___IMPL_INFO_PLATFORM_HPP
 
 #include <cstdint>
-#include <string> // info::platform::extensions
-#include <vector> // info::platform::extensions
+#include <string> // info::platform::
 
-#include <sycl/__impl/detail/config.hpp>            // namespace macro
-#include <sycl/__impl/detail/macro_definitions.hpp> // __SYCL2020_DEPRECATED
+#include <sycl/__impl/detail/config.hpp> // namespace macro
 
 _LIBSYCL_BEGIN_NAMESPACE_SYCL
 
 // A.1. Platform information descriptors
 
 namespace info {
-// ktikhomi: to be moved to a common place
-#define __SYCL_PARAM_TRAITS_SPEC(DescType, Desc, ReturnT, OffloadCode)              \
+#define __SYCL_PARAM_TRAITS_SPEC(DescType, Desc, ReturnT, OffloadCode)         \
   struct Desc {                                                                \
     using return_type = ReturnT;                                               \
   };
 
 // 4.6.2.4. Information descriptors
 namespace platform {
- #include <sycl/__impl/info/platform.def>
+#include <sycl/__impl/info/platform.def>
 } // namespace platform
 
 #undef __SYCL_PARAM_TRAITS_SPEC
@@ -43,8 +40,7 @@ namespace platform {
 namespace detail {
 template <typename T> struct is_platform_info_desc : std::false_type {};
 
-// ktikhomi: to be moved to a common place
-#define __SYCL_PARAM_TRAITS_SPEC(DescType, Desc, ReturnT, OffloadCode)              \
+#define __SYCL_PARAM_TRAITS_SPEC(DescType, Desc, ReturnT, OffloadCode)         \
   template <>                                                                  \
   struct is_##DescType##_info_desc<info::DescType::Desc> : std::true_type {    \
     using return_type = info::DescType::Desc::return_type;                     \

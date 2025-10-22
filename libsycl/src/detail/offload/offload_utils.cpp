@@ -11,7 +11,7 @@
 _LIBSYCL_BEGIN_NAMESPACE_SYCL
 namespace detail {
 
-      const char *stringifyErrorCode(int32_t error) {
+const char *stringifyErrorCode(int32_t error) {
   switch (error) {
 #define _OFFLOAD_ERRC(NAME)                                                    \
   case NAME:                                                                   \
@@ -47,7 +47,7 @@ namespace detail {
   }
 }
 
-  backend convertBackend(ol_platform_backend_t Backend) {
+backend convertBackend(ol_platform_backend_t Backend) {
   switch (Backend) {
   // case OL_PLATFORM_BACKEND_LEVEL_ZERO:
   //   return backend::level_zero;
@@ -59,7 +59,7 @@ namespace detail {
     throw exception(make_error_code(errc::runtime),
                     "convertBackend: Unsupported backend");
   }
-  }
+}
 
 } // namespace detail
 _LIBSYCL_END_NAMESPACE_SYCL

@@ -6,7 +6,7 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// The "sycl-ls" utility lists all platforms/devices discovered by SYCL.
+// The "sycl-ls" utility lists all platforms discovered by SYCL.
 //
 // There are two types of output:
 //   concise (default) and
@@ -14,25 +14,22 @@
 //
 #include <sycl/sycl.hpp>
 
-// #include <cstdlib>
-// #include <iomanip>
 #include <iostream>
 
 using namespace sycl;
 using namespace std::literals;
 
 // Controls verbose output vs. concise.
-bool verbose;
+bool verbose{};
 
 static int printUsageAndExit() {
-  std::cout << "Usage: sycl-ls [--verbose]"
-            << std::endl;
+  std::cout << "Usage: sycl-ls [--verbose]" << std::endl;
   std::cout << "This program lists all backends discovered by SYCL."
             << std::endl;
   std::cout << "\n Options:" << std::endl;
-  std::cout
-      << "\t --verbose " << "\t Verbosely prints all the discovered platforms. "
-      << std::endl;
+  std::cout << "\t --verbose "
+            << "\t Verbosely prints all the discovered platforms. "
+            << std::endl;
 
   return EXIT_FAILURE;
 }
@@ -54,15 +51,13 @@ int main(int argc, char **argv) {
     const auto &Platforms = platform::get_platforms();
 
     if (Platforms.size() == 0) {
-      std::cout
-          << "No platforms found."
-          << std::endl;
+      std::cout << "No platforms found." << std::endl;
     }
 
     for (const auto &Platform : Platforms) {
       backend Backend = Platform.get_backend();
-        std::cout << "[" << detail::get_backend_name(Backend) << ":"
-                  << "unknown" << "]" << std::endl;
+      std::cout << "[" << detail::get_backend_name(Backend) << ":"
+                << "unknown" << "]" << std::endl;
     }
 
     if (verbose) {

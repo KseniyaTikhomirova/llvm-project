@@ -19,7 +19,6 @@ _LIBSYCL_BEGIN_NAMESPACE_SYCL
 namespace detail {
 
 using LockGuard = std::lock_guard<SpinLock>;
-SpinLock GlobalHandler::MInstancePtrProtector{};
 
 GlobalHandler::GlobalHandler() = default;
 GlobalHandler::~GlobalHandler() = default;
@@ -47,8 +46,8 @@ T &GlobalHandler::getOrCreate(InstWithLock<T> &IWL, Types &&...Args) {
 
 std::array<detail::OffloadTopology, OL_PLATFORM_BACKEND_LAST> &
 GlobalHandler::getOffloadTopologies() {
-  static std::array<detail::OffloadTopology, OL_PLATFORM_BACKEND_LAST> &Topologies =
-      getOrCreate(MOffloadTopologies);
+  static std::array<detail::OffloadTopology, OL_PLATFORM_BACKEND_LAST>
+      &Topologies = getOrCreate(MOffloadTopologies);
   return Topologies;
 }
 
@@ -64,7 +63,6 @@ std::mutex &GlobalHandler::getPlatformMapMutex() {
 }
 
 void shutdown_late() {
-  const LockGuard Lock{GlobalHandler::MInstancePtrProtector};
   GlobalHandler *&Handler = GlobalHandler::getInstancePtr();
   if (!Handler)
     return;
