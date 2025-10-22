@@ -32,10 +32,11 @@ jobs:
         run: |
           mkdir -p $GITHUB_WORKSPACE/build
           mkdir -p $GITHUB_WORKSPACE/install
-          cmake -G Ninja -S $llvm/llvm -B $build_llvm \
+          cmake -G Ninja -S $GITHUB_WORKSPACE/llvm \
+            -B $GITHUB_WORKSPACE/build \
+            -DCMAKE_INSTALL_PREFIX=$GITHUB_WORKSPACE/install \
             -DLLVM_ENABLE_PROJECTS="clang" \
             -DLLVM_INSTALL_UTILS=ON \
-            -DCMAKE_INSTALL_PREFIX=$installprefix/release \
             -DLLVM_ENABLE_RUNTIMES="offload;openmp;libsycl" \
             -DCMAKE_BUILD_TYPE=Release
           ninja -C $GITHUB_WORKSPACE/build install --verbose
