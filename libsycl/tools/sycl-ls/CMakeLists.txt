@@ -2,8 +2,6 @@ add_executable(sycl-ls sycl-ls.cpp)
 add_dependencies(sycl-ls sycl)
 target_include_directories(sycl-ls PRIVATE ${LIBSYCL_BUILD_INCLUDE_DIR})
 
-message("LIBSYCL_SHARED_OUTPUT_NAME = " ${LIBSYCL_SHARED_OUTPUT_NAME})
-
 target_link_libraries(sycl-ls
   PRIVATE
     ${LIBSYCL_SHARED_OUTPUT_NAME}
