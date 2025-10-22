@@ -16,34 +16,27 @@ _LIBSYCL_BEGIN_NAMESPACE_SYCL
 
 namespace detail {
 
-platform_impl &
+platform_impl *
 platform_impl::getOrMakePlatformImpl(ol_platform_handle_t Platform,
                                      size_t PlatformIndex) {
-  std::shared_ptr<platform_impl> Result;
-  {
-    const std::lock_guard<std::mutex> Guard(
-        GlobalHandler::instance().getPlatformMapMutex());
+  const std::lock_guard<std::mutex> Guard(
+      GlobalHandler::instance().getPlatformMapMutex());
 
-    std::vector<std::shared_ptr<platform_impl>> &PlatformCache =
-        GlobalHandler::instance().getPlatformCache();
+  std::vector<std::unique_ptr<platform_impl>> &PlatformCache =
+      GlobalHandler::instance().getPlatformCache();
 
-    // If we've already seen this platform, return the impl
-    for (const auto &PlatImpl : PlatformCache) {
-      if (PlatImpl->getHandleRef() == Platform)
-        return *PlatImpl;
-    }
-
-    // Otherwise make the impl. Our ctor/dtor are private, so std::make_shared
-    // needs a bit of help...
-    struct creator : platform_impl {
-      creator(ol_platform_handle_t Platform, size_t PlatformIndex)
-          : platform_impl(Platform, PlatformIndex) {}
-    };
-    Result = std::make_shared<creator>(Platform, PlatformIndex);
-    PlatformCache.emplace_back(Result);
+  // If we've already seen this platform, return the impl
+  for (const auto &PlatImpl : PlatformCache) {
+    if (PlatImpl->getHandleRef() == Platform)
+      return PlatImpl.get();
   }
 
-  return *Result;
+  // Otherwise make the impl.
+  std::unique_ptr<platform_impl> Result;
+  Result = std::make_unique<platform_impl>(Platform, PlatformIndex);
+  PlatformCache.emplace_back(std::move(Result));
+
+  return PlatformCache.back().get();
 }
 
 std::vector<platform> platform_impl::getPlatforms() {

@@ -51,8 +51,8 @@ GlobalHandler::getOffloadTopologies() {
   return Topologies;
 }
 
-std::vector<std::shared_ptr<platform_impl>> &GlobalHandler::getPlatformCache() {
-  static std::vector<std::shared_ptr<platform_impl>> &PlatformCache =
+std::vector<std::unique_ptr<platform_impl>> &GlobalHandler::getPlatformCache() {
+  static std::vector<std::unique_ptr<platform_impl>> &PlatformCache =
       getOrCreate(MPlatformCache);
   return PlatformCache;
 }
@@ -62,13 +62,14 @@ std::mutex &GlobalHandler::getPlatformMapMutex() {
   return PlatformMapMutex;
 }
 
-void shutdown_late() {
+void shutdown() {
   GlobalHandler *&Handler = GlobalHandler::getInstancePtr();
   if (!Handler)
     return;
 
   // First, release resources, that may access offload lib.
   Handler->MPlatformCache.Inst.reset(nullptr);
+  Handler->MOffloadTopologies.Inst.reset(nullptr);
 
   // No error reporting in shutdown
   std::ignore = olShutDown();
@@ -86,7 +87,7 @@ extern "C" _LIBSYCL_EXPORT BOOL WINAPI DllMain(HINSTANCE hinstDLL,
   switch (fdwReason) {
   case DLL_PROCESS_DETACH:
     try {
-      shutdown_late();
+      shutdown();
     } catch (std::exception &e) {
       // report
     }
@@ -106,7 +107,7 @@ extern "C" _LIBSYCL_EXPORT BOOL WINAPI DllMain(HINSTANCE hinstDLL,
 // destructors. Priorities 0-100 are reserved by the compiler. The priority
 // value 110 allows SYCL users to run their destructors after runtime library
 // deinitialization.
-__attribute__((destructor(110))) static void syclUnload() { shutdown_late(); }
+__attribute__((destructor(110))) static void syclUnload() { shutdown(); }
 #endif
 } // namespace detail
 _LIBSYCL_END_NAMESPACE_SYCL

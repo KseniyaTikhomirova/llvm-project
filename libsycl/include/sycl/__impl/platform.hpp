@@ -97,9 +97,12 @@ public:
   static std::vector<platform> get_platforms();
 
 private:
-  std::shared_ptr<detail::platform_impl> impl;
+  // platform_impl management is done by GlobalHandler.
+  // Platform cache is alive till the end of program so we hold raw pointer
+  // here.
+  detail::platform_impl *impl{};
 
-  platform(std::shared_ptr<detail::platform_impl> Impl) : impl(Impl) {}
+  platform(detail::platform_impl *Impl) : impl(Impl) {}
 
   template <typename Param>
   typename detail::is_platform_info_desc<Param>::return_type

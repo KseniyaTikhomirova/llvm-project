@@ -52,12 +52,12 @@ public:
   getOffloadTopologies();
 
   std::mutex &getPlatformMapMutex();
-  std::vector<std::shared_ptr<platform_impl>> &getPlatformCache();
+  std::vector<std::unique_ptr<platform_impl>> &getPlatformCache();
 
 private:
   static GlobalHandler *&getInstancePtr();
 
-  friend void shutdown_late();
+  friend void shutdown();
 
   // Constructor and destructor are declared out-of-line to allow incomplete
   // types as template arguments to unique_ptr.
@@ -74,7 +74,7 @@ private:
 
   InstWithLock<std::array<detail::OffloadTopology, OL_PLATFORM_BACKEND_LAST>>
       MOffloadTopologies;
-  InstWithLock<std::vector<std::shared_ptr<platform_impl>>> MPlatformCache;
+  InstWithLock<std::vector<std::unique_ptr<platform_impl>>> MPlatformCache;
   InstWithLock<std::mutex> MPlatformMapMutex;
 };
 } // namespace detail

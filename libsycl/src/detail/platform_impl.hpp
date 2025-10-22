@@ -27,7 +27,7 @@ _LIBSYCL_BEGIN_NAMESPACE_SYCL
 
 namespace detail {
 
-class platform_impl : public std::enable_shared_from_this<platform_impl> {
+class platform_impl {
 public:
   /// Constructs platform_impl from a platform handle.
   ///
@@ -69,7 +69,7 @@ public:
   /// \param PlatformIndex is a platform index in a backend (needed for a proper
   /// indexing in device selector).
   /// \return the platform_impl representing the offloading RT platform
-  static platform_impl &getOrMakePlatformImpl(ol_platform_handle_t Platform,
+  static platform_impl *getOrMakePlatformImpl(ol_platform_handle_t Platform,
                                               size_t PlatformIndex);
 
   /// Queries this SYCL platform for info.
