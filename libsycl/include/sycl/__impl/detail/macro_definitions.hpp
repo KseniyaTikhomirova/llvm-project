@@ -24,7 +24,7 @@
 #endif // __SYCL2020_DEPRECATED
 
 static_assert(__cplusplus >= 201703L,
-              "DPCPP does not support C++ version earlier than C++17.");
+              "SYCL RT does not support C++ version earlier than C++17.");
 
 #if defined(_WIN32) && !defined(_DLL) && !defined(__SYCL_DEVICE_ONLY__)
 // SYCL library is designed such a way that STL objects cross DLL boundary,
