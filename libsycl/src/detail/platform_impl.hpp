@@ -6,22 +6,22 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include <sycl/__impl/backend.hpp>       // sycl::backend
-#include <sycl/__impl/detail/config.hpp> // namespace macro
-#include <sycl/__impl/platform.hpp>      // sycl::platform
+#ifndef _LIBSYCL_PLATFORM_IMPL
+#define _LIBSYCL_PLATFORM_IMPL
+
+#include <sycl/__impl/backend.hpp>
+#include <sycl/__impl/detail/config.hpp>
+#include <sycl/__impl/platform.hpp>
 
 #include "detail/offload/info_code.hpp"
 #include "detail/offload/offload_utils.hpp"
 
-#include <memory> // std::enable_shared_from_this
+#include <OffloadAPI.h>
+
+#include <memory>
 #include <string>
-#include <type_traits> // std::is_same
-#include <vector>      // std::vector
-
-#include <OffloadAPI.h> // ol_platform_handle_t
-
-#ifndef _LIBSYCL_PLATFORM_IMPL
-#  define _LIBSYCL_PLATFORM_IMPL
+#include <type_traits>
+#include <vector>
 
 _LIBSYCL_BEGIN_NAMESPACE_SYCL
 

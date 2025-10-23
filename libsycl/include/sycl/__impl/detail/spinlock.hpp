@@ -22,7 +22,7 @@
 #ifndef _LIBSYCL___IMPL_SPINLOCK_HPP
 #define _LIBSYCL___IMPL_SPINLOCK_HPP
 
-#include <sycl/__impl/detail/config.hpp> // namespace macro
+#include <sycl/__impl/detail/config.hpp>
 
 #include <atomic>
 #include <thread>

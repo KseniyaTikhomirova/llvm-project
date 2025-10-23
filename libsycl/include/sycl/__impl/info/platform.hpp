@@ -14,9 +14,9 @@
 #ifndef _LIBSYCL___IMPL_INFO_PLATFORM_HPP
 #define _LIBSYCL___IMPL_INFO_PLATFORM_HPP
 
-#include <string> // info::platform::
+#include <sycl/__impl/detail/config.hpp>
 
-#include <sycl/__impl/detail/config.hpp> // namespace macro
+#include <string>
 
 _LIBSYCL_BEGIN_NAMESPACE_SYCL
 

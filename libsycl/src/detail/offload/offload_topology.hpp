@@ -6,15 +6,15 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include <sycl/__impl/detail/config.hpp> // namespace macro
+#ifndef _LIBSYCL_OFFLOAD_TOPOLOGY
+#define _LIBSYCL_OFFLOAD_TOPOLOGY
+
+#include <sycl/__impl/detail/config.hpp>
 
 #include <OffloadAPI.h>
 
 #include <cassert>
 #include <vector>
-
-#ifndef _LIBSYCL_OFFLOAD_TOPOLOGY
-#  define _LIBSYCL_OFFLOAD_TOPOLOGY
 
 _LIBSYCL_BEGIN_NAMESPACE_SYCL
 

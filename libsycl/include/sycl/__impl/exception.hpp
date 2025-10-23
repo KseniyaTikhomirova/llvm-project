@@ -15,14 +15,14 @@
 #ifndef _LIBSYCL___IMPL_EXCEPTION_HPP
 #define _LIBSYCL___IMPL_EXCEPTION_HPP
 
-#include <sycl/__impl/detail/config.hpp> // namespace macro
+#include <sycl/__impl/detail/config.hpp>
 
-#include <exception>    // for exception
-#include <memory>       // for shared_ptr
-#include <string>       // for string, basic_string, opera...
-#include <system_error> // for error_code, error_category
-#include <type_traits>  // for true_type
-#include <vector>       // for vector in exception_list
+#include <exception>
+#include <memory>
+#include <string>
+#include <system_error>
+#include <type_traits>
+#include <vector>
 
 _LIBSYCL_BEGIN_NAMESPACE_SYCL
 

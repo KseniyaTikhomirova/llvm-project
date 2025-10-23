@@ -15,11 +15,11 @@
 #ifndef _LIBSYCL___IMPL_DETAIL_IMPL_UTILS_HPP
 #define _LIBSYCL___IMPL_DETAIL_IMPL_UTILS_HPP
 
-#include <sycl/__impl/detail/config.hpp> // namespace macro
+#include <sycl/__impl/detail/config.hpp>
 
-#include <cassert>     // for assert
-#include <type_traits> // for add_rvalue_reference_t and others
-#include <utility>     // for forward
+#include <cassert>
+#include <type_traits>
+#include <utility>
 
 _LIBSYCL_BEGIN_NAMESPACE_SYCL
 

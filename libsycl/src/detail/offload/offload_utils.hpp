@@ -6,14 +6,14 @@
 //
 //===----------------------------------------------------------------------===//
 
+#ifndef _LIBSYCL_OFFLOAD_UTILS
+#define _LIBSYCL_OFFLOAD_UTILS
+
 #include <sycl/__impl/backend.hpp>
-#include <sycl/__impl/detail/config.hpp> // namespace macro
+#include <sycl/__impl/detail/config.hpp>
 #include <sycl/__impl/exception.hpp>
 
 #include <OffloadAPI.h>
-
-#ifndef _LIBSYCL_OFFLOAD_UTILS
-#  define _LIBSYCL_OFFLOAD_UTILS
 
 _LIBSYCL_BEGIN_NAMESPACE_SYCL
 

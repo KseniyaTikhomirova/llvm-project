@@ -16,9 +16,10 @@
 #ifndef _LIBSYCL___IMPL_BACKEND_HPP
 #define _LIBSYCL___IMPL_BACKEND_HPP
 
+#include <sycl/__impl/detail/config.hpp>
+
 #include <string_view>
-#include <sycl/__impl/detail/config.hpp> // namespace macro
-#include <type_traits>                   // std::false_type
+#include <type_traits>
 
 _LIBSYCL_BEGIN_NAMESPACE_SYCL
 

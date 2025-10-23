@@ -6,8 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include <sycl/__impl/detail/config.hpp>     // namespace macro
-#include <sycl/__impl/detail/impl_utils.hpp> // createSyclObjFromImpl
+#include <sycl/__impl/detail/config.hpp>
+#include <sycl/__impl/detail/impl_utils.hpp>
 
 #include <detail/global_handler.hpp>
 #include <detail/platform_impl.hpp>

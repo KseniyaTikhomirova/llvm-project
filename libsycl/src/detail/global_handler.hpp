@@ -6,17 +6,17 @@
 //
 //===----------------------------------------------------------------------===//
 
+#ifndef _LIBSYCL_GLOBAL_HANDLER
+#define _LIBSYCL_GLOBAL_HANDLER
+
 #include <detail/offload/offload_topology.hpp>
-#include <sycl/__impl/detail/config.hpp>   // namespace macro
-#include <sycl/__impl/detail/spinlock.hpp> // class SpinLock
+#include <sycl/__impl/detail/config.hpp>
+#include <sycl/__impl/detail/spinlock.hpp>
 
 #include <array>
 #include <memory>
 #include <mutex>
 #include <vector>
-
-#ifndef _LIBSYCL_GLOBAL_HANDLER
-#  define _LIBSYCL_GLOBAL_HANDLER
 
 _LIBSYCL_BEGIN_NAMESPACE_SYCL
 

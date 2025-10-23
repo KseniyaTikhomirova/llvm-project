@@ -15,13 +15,13 @@
 #ifndef _LIBSYCL___IMPL_PLATFORM_HPP
 #define _LIBSYCL___IMPL_PLATFORM_HPP
 
-#include <sycl/__impl/backend.hpp>       // sycl::backend
-#include <sycl/__impl/detail/config.hpp> // namespace macro
+#include <sycl/__impl/backend.hpp>
+#include <sycl/__impl/detail/config.hpp>
 #include <sycl/__impl/detail/impl_utils.hpp>
-#include <sycl/__impl/info/platform.hpp> // info::platform entries
+#include <sycl/__impl/info/platform.hpp>
 
-#include <memory> // std::shared_ptr for impl
-#include <vector> // required in get_platforms
+#include <memory>
+#include <vector>
 
 _LIBSYCL_BEGIN_NAMESPACE_SYCL
 
