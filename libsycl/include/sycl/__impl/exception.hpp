@@ -46,7 +46,7 @@ enum class errc : int {
   backend_mismatch = 14,
 };
 
-/// Constructs an error code using e and sycl_category()
+/// Constructs an error code using E and sycl_category()
 _LIBSYCL_EXPORT std::error_code make_error_code(sycl::errc E) noexcept;
 
 /// Obtains a reference to the static error category object for SYCL errors.
@@ -54,8 +54,8 @@ _LIBSYCL_EXPORT const std::error_category &sycl_category() noexcept;
 
 // Derive from std::exception so uncaught exceptions are printed in c++ default
 // exception handler.
+// Virtual inheritance is a mandated by SYCL2020.
 // 4.13.2. Exception class interface
-/// \ingroup sycl_api
 class _LIBSYCL_EXPORT exception : public virtual std::exception {
 public:
   exception(std::error_code, const char *);
@@ -89,7 +89,6 @@ private:
 
 /// Used as a container for a list of asynchronous exceptions
 ///
-/// \ingroup sycl_api
 class _LIBSYCL_EXPORT exception_list {
 public:
   using value_type = std::exception_ptr;
