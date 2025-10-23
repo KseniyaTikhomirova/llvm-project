@@ -26,7 +26,6 @@
 
 _LIBSYCL_BEGIN_NAMESPACE_SYCL
 
-// Forward declaration
 class context;
 
 enum class errc : int {
@@ -71,13 +70,6 @@ public:
   exception(int EV, const std::error_category &ECat)
       : exception({EV, ECat}, "") {}
 
-  // exception(context, std::error_code, const std::string &);
-  // exception(context, std::error_code, const char *);
-  // exception(context, std::error_code);
-  // exception(context, int, const std::error_category &, const std::string &);
-  // exception(context, int, const std::error_category &, const char *);
-  // exception(context, int, const std::error_category &);
-
   virtual ~exception();
 
   const std::error_code &code() const noexcept;
@@ -86,8 +78,6 @@ public:
   const char *what() const noexcept final;
 
   bool has_context() const noexcept;
-
-  //  context get_context() const;
 
 private:
   // Exceptions must be noexcept copy constructible, so cannot use std::string
