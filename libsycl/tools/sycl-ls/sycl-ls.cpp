@@ -14,38 +14,21 @@
 //
 #include <sycl/sycl.hpp>
 
+#include "llvm/Support/CommandLine.h"
+
 #include <iostream>
 
 using namespace sycl;
 using namespace std::literals;
 
-// Controls verbose output vs. concise.
-bool verbose{};
-
-static int printUsageAndExit() {
-  std::cout << "Usage: sycl-ls [--verbose]" << std::endl;
-  std::cout << "This program lists all backends discovered by SYCL."
-            << std::endl;
-  std::cout << "\n Options:" << std::endl;
-  std::cout << "\t --verbose "
-            << "\t Verbosely prints all the discovered platforms. "
-            << std::endl;
-
-  return EXIT_FAILURE;
-}
-
 int main(int argc, char **argv) {
-  if (argc == 1) {
-    verbose = false;
-  } else {
-    // Parse CLI options.
-    for (int i = 1; i < argc; i++) {
-      if (argv[i] == "--verbose"sv)
-        verbose = true;
-      else
-        return printUsageAndExit();
-    }
-  }
+  llvm::cl::opt<bool> Verbose(
+      "verbose",
+      llvm::cl::desc("Verbosely prints all the discovered platforms"));
+  llvm::cl::alias VerboseShort("v", llvm::cl::desc("Alias for -verbose"),
+                               llvm::cl::aliasopt(Verbose));
+  llvm::cl::ParseCommandLineOptions(
+      argc, argv, "This program lists all backends discovered by SYCL");
 
   try {
     const auto &Platforms = platform::get_platforms();
@@ -60,11 +43,10 @@ int main(int argc, char **argv) {
                 << "unknown" << "]" << std::endl;
     }
 
-    if (verbose) {
+    if (Verbose) {
       std::cout << "\nPlatforms: " << Platforms.size() << std::endl;
       uint32_t PlatformNum = 0;
       for (const auto &Platform : Platforms) {
-        backend Backend = Platform.get_backend();
         ++PlatformNum;
         auto PlatformVersion = Platform.get_info<info::platform::version>();
         auto PlatformName = Platform.get_info<info::platform::name>();
