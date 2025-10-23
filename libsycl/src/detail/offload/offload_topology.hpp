@@ -80,9 +80,8 @@ private:
   ol_platform_backend_t OlBackend = OL_PLATFORM_BACKEND_UNKNOWN;
 
   // Platforms and devices belonging to this backend (flattened)
-  std::vector<ol_platform_handle_t> Platforms; // platforms for this backend
-  std::vector<ol_device_handle_t>
-      Devices; // devices for this backend (grouped by platform)
+  std::vector<ol_platform_handle_t> Platforms;
+  std::vector<ol_device_handle_t> Devices; // grouped by platform
 
   // Vector holding range of devices for each platform (index is platform index
   // within Platforms)
