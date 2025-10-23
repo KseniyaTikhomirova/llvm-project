@@ -19,8 +19,7 @@ _LIBSYCL_BEGIN_NAMESPACE_SYCL
 namespace detail {
 
 void discoverOffloadDevices() {
-  static std::once_flag DiscoverOnce;
-  std::call_once(DiscoverOnce, [&]() {
+  [[maybe_unused]] static auto DiscoverOnce = [&]() {
     call_and_throw(olInit);
 
     using StorageType =
@@ -66,7 +65,9 @@ void discoverOffloadDevices() {
         Topo.registerNewPlatformAndDevices(PltAndDevs.first,
                                            std::move(PltAndDevs.second));
     }
-  });
+
+    return true;
+  }();
 }
 
 } // namespace detail
