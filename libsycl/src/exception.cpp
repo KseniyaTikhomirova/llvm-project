@@ -16,8 +16,6 @@
 #include <sycl/__impl/detail/config.hpp>
 #include <sycl/__impl/exception.hpp>
 
-#include <cstring>
-
 _LIBSYCL_BEGIN_NAMESPACE_SYCL
 
 namespace detail {
