@@ -54,7 +54,7 @@ _LIBSYCL_EXPORT const std::error_category &sycl_category() noexcept;
 
 // Derive from std::exception so uncaught exceptions are printed in c++ default
 // exception handler.
-// Virtual inheritance is a mandated by SYCL2020.
+// Virtual inheritance is mandated by SYCL2020.
 // 4.13.2. Exception class interface
 class _LIBSYCL_EXPORT exception : public virtual std::exception {
 public:
