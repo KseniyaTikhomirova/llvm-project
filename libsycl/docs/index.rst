@@ -81,7 +81,7 @@ To build LLVM with libsycl runtime enabled the following script can be used.
 Limitations
 ========
 
-Offloading runtime (liboffload) used by SYCL runtime doesn't support Windows now. So Windows support in SYCL RT is not guaranteed and not tested now.
-The limitation to be revised once liboffload will add support of Windows.
+SYCL runtime is not tested and is not guaranteed to work on Windows because offloading runtime (liboffload) used by SYCL runtime doesn't currently support Windows.
+The limitation to be revised once liboffload will add support for Windows.
 
   
