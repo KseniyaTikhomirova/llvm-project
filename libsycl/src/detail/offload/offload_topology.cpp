@@ -35,18 +35,21 @@ void discoverOffloadDevices() {
           ol_result_t Res =
               call_nocheck(olGetDeviceInfo, Dev, OL_DEVICE_INFO_PLATFORM,
                            sizeof(Plat), &Plat);
+          // If error occures, ignore platform and continue iteration
           if (Res != OL_SUCCESS)
-            return true; // continue
+            return true;
 
           ol_platform_backend_t OlBackend = OL_PLATFORM_BACKEND_UNKNOWN;
           Res = call_nocheck(olGetPlatformInfo, Plat, OL_PLATFORM_INFO_BACKEND,
                              sizeof(OlBackend), &OlBackend);
+          // If error occures, ignore platform and continue iteration
           if (Res != OL_SUCCESS)
-            return true; // continue
+            return true;
 
+          // Skip host & unknown backends
           if (OL_PLATFORM_BACKEND_HOST == OlBackend ||
               OL_PLATFORM_BACKEND_UNKNOWN == OlBackend)
-            return true; // skip host/unknown backend
+            return true;
 
           // Ensure backend index fits into array size
           if (OlBackend >= OL_PLATFORM_BACKEND_LAST)
