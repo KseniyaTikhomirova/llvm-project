@@ -6,11 +6,10 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include <detail/global_handler.hpp>
+#include <detail/global_objects.hpp>
 #include <detail/offload/offload_topology.hpp>
 #include <detail/offload/offload_utils.hpp>
 
-#include <array>
 #include <unordered_map>
 #include <vector>
 
@@ -23,9 +22,8 @@ void discoverOffloadDevices() {
     call_and_throw(olInit);
 
     using StorageType =
-        std::array<std::unordered_map<ol_platform_handle_t,
-                                      std::vector<ol_device_handle_t>>,
-                   OL_PLATFORM_BACKEND_LAST>;
+        std::vector<std::unordered_map<ol_platform_handle_t,
+                                       std::vector<ol_device_handle_t>>>;
     StorageType Mapping;
     // olIterateDevices calls lambda for every device.
     // Returning early means jump to next iteration/next device.
@@ -62,7 +60,7 @@ void discoverOffloadDevices() {
         },
         &Mapping);
     // Now register all platforms and devices into the topologies
-    auto &OffloadTopologies = GlobalHandler::instance().getOffloadTopologies();
+    auto &OffloadTopologies = getOffloadTopologies();
     for (size_t I = 0; I < OL_PLATFORM_BACKEND_LAST; ++I) {
       OffloadTopology &Topo = OffloadTopologies[I];
       Topo.set_backend(static_cast<ol_platform_backend_t>(I));

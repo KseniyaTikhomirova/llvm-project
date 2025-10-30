@@ -76,7 +76,7 @@ set(LIBSYCL_SOURCES
     "exception.cpp"
     "exception_list.cpp"
     "platform.cpp"
-    "detail/global_handler.cpp"
+    "detail/global_objects.cpp"
     "detail/platform_impl.cpp"
     "detail/offload/offload_utils.cpp"
     "detail/offload/offload_topology.cpp"

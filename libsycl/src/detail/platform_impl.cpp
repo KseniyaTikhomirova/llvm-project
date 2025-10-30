@@ -9,7 +9,7 @@
 #include <sycl/__impl/detail/config.hpp>
 #include <sycl/__impl/detail/pimpl.hpp>
 
-#include <detail/global_handler.hpp>
+#include <detail/global_objects.hpp>
 #include <detail/platform_impl.hpp>
 
 _LIBSYCL_BEGIN_NAMESPACE_SYCL
@@ -19,11 +19,10 @@ namespace detail {
 platform_impl *
 platform_impl::getOrMakePlatformImpl(ol_platform_handle_t Platform,
                                      size_t PlatformIndex) {
-  const std::lock_guard<std::mutex> Guard(
-      GlobalHandler::instance().getPlatformMapMutex());
+  const std::lock_guard<std::mutex> Guard(getPlatformMapMutex());
 
   std::vector<std::unique_ptr<platform_impl>> &PlatformCache =
-      GlobalHandler::instance().getPlatformCache();
+      getPlatformCache();
 
   // If we've already seen this platform, return the impl
   for (const auto &PlatImpl : PlatformCache) {
@@ -42,7 +41,7 @@ platform_impl::getOrMakePlatformImpl(ol_platform_handle_t Platform,
 std::vector<platform> platform_impl::getPlatforms() {
   discoverOffloadDevices();
   std::vector<platform> Platforms;
-  for (const auto &Topo : GlobalHandler::instance().getOffloadTopologies()) {
+  for (const auto &Topo : getOffloadTopologies()) {
     size_t PlatformIndex = 0;
     for (const auto &OffloadPlatform : Topo.platforms()) {
       platform Platform = detail::createSyclObjFromImpl<platform>(

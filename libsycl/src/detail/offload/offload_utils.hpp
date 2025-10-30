@@ -22,7 +22,8 @@ namespace detail {
 const char *stringifyErrorCode(int32_t error);
 
 inline std::string formatCodeString(int32_t code) {
-  return std::to_string(code) + " (" + std::string(stringifyErrorCode(code)) + ")";
+  return std::to_string(code) + " (" + std::string(stringifyErrorCode(code)) +
+         ")";
 }
 
 template <sycl::errc errc = sycl::errc::runtime>
