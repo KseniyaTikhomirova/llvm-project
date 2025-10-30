@@ -10,8 +10,8 @@
 #include <detail/offload/offload_topology.hpp>
 #include <detail/offload/offload_utils.hpp>
 
+#include <array>
 #include <unordered_map>
-#include <vector>
 
 _LIBSYCL_BEGIN_NAMESPACE_SYCL
 
@@ -22,7 +22,8 @@ void discoverOffloadDevices() {
     call_and_throw(olInit);
 
     using PerBackendDataType =
-        std::vector<std::pair<PlatformWithDevStorageType, size_t /*DevCount*/>>;
+        std::array<std::pair<PlatformWithDevStorageType, size_t /*DevCount*/>,
+                   OL_PLATFORM_BACKEND_LAST>;
 
     PerBackendDataType Mapping;
     // olIterateDevices calls lambda for every device.
