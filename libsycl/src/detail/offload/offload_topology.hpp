@@ -14,6 +14,7 @@
 #include <OffloadAPI.h>
 
 #include <cassert>
+#include <unordered_map>
 #include <vector>
 
 _LIBSYCL_BEGIN_NAMESPACE_SYCL
@@ -30,15 +31,14 @@ template <class T> struct range_view {
   size_t size() const { return len; }
 };
 
+using PlatformWithDevStorageType =
+    std::unordered_map<ol_platform_handle_t, std::vector<ol_device_handle_t>>;
+
 // Contiguous global storage of platform handlers and device handles (grouped by
 // platform) for a backend.
 struct OffloadTopology {
   OffloadTopology() : OlBackend(OL_PLATFORM_BACKEND_UNKNOWN) {}
   OffloadTopology(ol_platform_backend_t OlBackend) : OlBackend(OlBackend) {}
-
-  struct Range {
-    uint32_t Begin = 0, Count = 0;
-  };
 
   void set_backend(ol_platform_backend_t B) { OlBackend = B; }
 
@@ -51,27 +51,36 @@ struct OffloadTopology {
   range_view<ol_device_handle_t> devicesForPlatform(size_t PlatformId) const {
     if (PlatformId >= PlatformDevices.size())
       return {nullptr, 0};
-    const auto R = PlatformDevices[PlatformId];
-    return {Devices.data() + R.Begin, R.Count};
+    return PlatformDevices[PlatformId].first;
   }
 
   size_t getFirstDeviceIndexForPlatform(size_t PlatformId) const {
     assert(PlatformId < PlatformDevices.size());
-    const auto R = PlatformDevices[PlatformId];
-    return R.Begin;
+    return PlatformDevices[PlatformId].second;
   }
 
   // Register new platform and devices into this topology under that platform.
   void
-  registerNewPlatformAndDevices(ol_platform_handle_t NewPlatform,
-                                std::vector<ol_device_handle_t> &&NewDevs) {
-    Platforms.push_back(NewPlatform);
+  registerNewPlatformsAndDevices(PlatformWithDevStorageType &PlatformsAndDev,
+                                 size_t TotalDevCount) {
+    if (!PlatformsAndDev.size())
+      return;
 
-    Range R;
-    R.Begin = Devices.size();
-    R.Count = NewDevs.size();
-    Devices.insert(Devices.end(), NewDevs.begin(), NewDevs.end());
-    PlatformDevices.push_back(R);
+    Platforms.reserve(PlatformsAndDev.size());
+    PlatformDevices.reserve(Platforms.size());
+    Devices.reserve(TotalDevCount);
+
+    for (auto &[NewPlatform, NewDevs] : PlatformsAndDev) {
+      Platforms.push_back(NewPlatform);
+
+      size_t StartIdx = Devices.size();
+      range_view<ol_device_handle_t> R{Devices.data() + Devices.size(),
+                                       NewDevs.size()};
+      Devices.insert(Devices.end(), NewDevs.begin(), NewDevs.end());
+      PlatformDevices.push_back({R, StartIdx});
+    }
+
+    assert(TotalDevCount == Devices.size());
   }
 
   ol_platform_backend_t backend() { return OlBackend; }
@@ -85,7 +94,7 @@ private:
 
   // Vector holding range of devices for each platform (index is platform index
   // within Platforms)
-  std::vector<Range>
+  std::vector<std::pair<range_view<ol_device_handle_t>, size_t>>
       PlatformDevices; // PlatformDevices.size() == Platforms.size()
 };
 

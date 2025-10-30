@@ -21,16 +21,16 @@ void discoverOffloadDevices() {
   [[maybe_unused]] static auto DiscoverOnce = [&]() {
     call_and_throw(olInit);
 
-    using StorageType =
-        std::vector<std::unordered_map<ol_platform_handle_t,
-                                       std::vector<ol_device_handle_t>>>;
-    StorageType Mapping;
+    using PerBackendDataType =
+        std::vector<std::pair<PlatformWithDevStorageType, size_t /*DevCount*/>>;
+
+    PerBackendDataType Mapping;
     // olIterateDevices calls lambda for every device.
     // Returning early means jump to next iteration/next device.
     call_nocheck(
         olIterateDevices,
         [](ol_device_handle_t Dev, void *User) -> bool {
-          auto *Data = static_cast<StorageType *>(User);
+          auto *Data = static_cast<PerBackendDataType *>(User);
           ol_platform_handle_t Plat = nullptr;
           ol_result_t Res =
               call_nocheck(olGetDeviceInfo, Dev, OL_DEVICE_INFO_PLATFORM,
@@ -55,7 +55,9 @@ void discoverOffloadDevices() {
           if (OlBackend >= OL_PLATFORM_BACKEND_LAST)
             return true;
 
-          (*Data)[static_cast<size_t>(OlBackend)][Plat].push_back(Dev);
+          auto &[Map, DevCount] = (*Data)[static_cast<size_t>(OlBackend)];
+          Map[Plat].push_back(Dev);
+          DevCount++;
           return true;
         },
         &Mapping);
@@ -64,9 +66,7 @@ void discoverOffloadDevices() {
     for (size_t I = 0; I < OL_PLATFORM_BACKEND_LAST; ++I) {
       OffloadTopology &Topo = OffloadTopologies[I];
       Topo.set_backend(static_cast<ol_platform_backend_t>(I));
-      for (auto &PltAndDevs : Mapping[I])
-        Topo.registerNewPlatformAndDevices(PltAndDevs.first,
-                                           std::move(PltAndDevs.second));
+      Topo.registerNewPlatformsAndDevices(Mapping[I].first, Mapping[I].second);
     }
 
     return true;
