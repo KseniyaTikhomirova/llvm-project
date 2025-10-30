@@ -81,7 +81,7 @@ private:
 
   // Platforms and devices belonging to this backend (flattened)
   std::vector<ol_platform_handle_t> Platforms;
-  std::vector<ol_device_handle_t> Devices; // grouped by platform
+  std::vector<ol_device_handle_t> Devices; // sorted by platform
 
   // Vector holding range of devices for each platform (index is platform index
   // within Platforms)

@@ -27,6 +27,8 @@ void discoverOffloadDevices() {
                                       std::vector<ol_device_handle_t>>,
                    OL_PLATFORM_BACKEND_LAST>;
     StorageType Mapping;
+    // olIterateDevices calls lambda for every device.
+    // Returning early means jump to next iteration/next device.
     call_nocheck(
         olIterateDevices,
         [](ol_device_handle_t Dev, void *User) -> bool {

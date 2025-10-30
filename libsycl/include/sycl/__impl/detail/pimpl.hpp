@@ -12,8 +12,8 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#ifndef _LIBSYCL___IMPL_DETAIL_IMPL_UTILS_HPP
-#define _LIBSYCL___IMPL_DETAIL_IMPL_UTILS_HPP
+#ifndef _LIBSYCL___IMPL_DETAIL_PIMPL_HPP
+#define _LIBSYCL___IMPL_DETAIL_PIMPL_HPP
 
 #include <sycl/__impl/detail/config.hpp>
 
@@ -62,4 +62,4 @@ T createSyclObjFromImpl(
 } // namespace detail
 _LIBSYCL_END_NAMESPACE_SYCL
 
-#endif // _LIBSYCL___IMPL_DETAIL_IMPL_UTILS_HPP
+#endif // _LIBSYCL___IMPL_DETAIL_PIMPL_HPP

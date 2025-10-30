@@ -28,8 +28,8 @@ enum class backend : char {
   opencl = 1,
   level_zero = 2,
   cuda = 3,
-  all = 4,
-  hip = 6,
+  hip = 4,
+  all = 5,
 };
 
 namespace detail {

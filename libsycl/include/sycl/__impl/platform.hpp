@@ -17,7 +17,7 @@
 
 #include <sycl/__impl/backend.hpp>
 #include <sycl/__impl/detail/config.hpp>
-#include <sycl/__impl/detail/impl_utils.hpp>
+#include <sycl/__impl/detail/pimpl.hpp>
 #include <sycl/__impl/info/platform.hpp>
 
 #include <memory>

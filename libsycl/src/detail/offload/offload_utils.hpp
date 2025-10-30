@@ -21,16 +21,15 @@ namespace detail {
 
 const char *stringifyErrorCode(int32_t error);
 
-inline std::string codeToString(int32_t code) {
-  return std::to_string(code) + " (" + std::string(stringifyErrorCode(code)) +
-         ")";
+inline std::string formatCodeString(int32_t code) {
+  return std::to_string(code) + " (" + std::string(stringifyErrorCode(code)) + ")";
 }
 
 template <sycl::errc errc = sycl::errc::runtime>
 void checkAndThrow(ol_result_t Result) {
   if (Result != OL_SUCCESS) {
     throw sycl::exception(sycl::make_error_code(errc),
-                          sycl::detail::codeToString(Result->Code));
+                          detail::formatCodeString(Result->Code));
   }
 }
 

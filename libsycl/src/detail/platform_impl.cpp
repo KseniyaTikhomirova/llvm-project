@@ -7,7 +7,7 @@
 //===----------------------------------------------------------------------===//
 
 #include <sycl/__impl/detail/config.hpp>
-#include <sycl/__impl/detail/impl_utils.hpp>
+#include <sycl/__impl/detail/pimpl.hpp>
 
 #include <detail/global_handler.hpp>
 #include <detail/platform_impl.hpp>
