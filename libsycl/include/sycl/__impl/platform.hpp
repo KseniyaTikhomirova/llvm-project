@@ -98,7 +98,7 @@ public:
   static std::vector<platform> get_platforms();
 
 private:
-  platform(detail::platform_impl *Impl) : ObjBase(Impl) {}
+  platform(detail::platform_impl &Impl) : ObjBase(Impl) {}
 
   template <typename Param>
   typename detail::is_platform_info_desc<Param>::return_type

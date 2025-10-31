@@ -45,7 +45,7 @@ std::vector<platform> platform_impl::getPlatforms() {
     size_t PlatformIndex = 0;
     for (const auto &OffloadPlatform : Topo.platforms()) {
       platform Platform = detail::createSyclObjFromImpl<platform>(
-          getOrMakePlatformImpl(OffloadPlatform, PlatformIndex++));
+          *getOrMakePlatformImpl(OffloadPlatform, PlatformIndex++));
       Platforms.push_back(std::move(Platform));
     }
   }
