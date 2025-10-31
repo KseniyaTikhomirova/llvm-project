@@ -35,10 +35,6 @@ std::mutex &getPlatformMapMutex() {
 }
 
 void shutdown() {
-  // First, release resources, that may access offload lib.
-  getPlatformCache().clear();
-  getOffloadTopologies().clear();
-
   // No error reporting in shutdown
   std::ignore = olShutDown();
 }
