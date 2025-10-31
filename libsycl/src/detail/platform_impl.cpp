@@ -7,7 +7,7 @@
 //===----------------------------------------------------------------------===//
 
 #include <sycl/__impl/detail/config.hpp>
-#include <sycl/__impl/detail/pimpl.hpp>
+#include <sycl/__impl/detail/obj_base.hpp>
 
 #include <detail/global_objects.hpp>
 #include <detail/platform_impl.hpp>

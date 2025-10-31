@@ -17,7 +17,7 @@
 
 #include <sycl/__impl/backend.hpp>
 #include <sycl/__impl/detail/config.hpp>
-#include <sycl/__impl/detail/pimpl.hpp>
+#include <sycl/__impl/detail/obj_base.hpp>
 #include <sycl/__impl/info/platform.hpp>
 
 #include <memory>
@@ -30,7 +30,8 @@ class platform_impl;
 } // namespace detail
 
 // 4.6.2. Platform class
-class _LIBSYCL_EXPORT platform {
+class _LIBSYCL_EXPORT platform
+    : public detail::ObjBase<detail::platform_impl, platform> {
 public:
   /// Constructs a platform object that is a copy of the platform which contains
   /// the device returned by default_selector_v.
@@ -97,27 +98,13 @@ public:
   static std::vector<platform> get_platforms();
 
 private:
-  // platform_impl management is done by GlobalHandler.
-  // Platform cache is alive till the end of program so we hold raw pointer
-  // here.
-  detail::platform_impl *impl{};
-
-  platform(detail::platform_impl *Impl) : impl(Impl) {}
+  platform(detail::platform_impl *Impl) : ObjBase(Impl) {}
 
   template <typename Param>
   typename detail::is_platform_info_desc<Param>::return_type
   get_info_impl() const;
 
-  // impl extraction utils:
-  template <class T>
-  friend T detail::createSyclObjFromImpl(
-      std::add_rvalue_reference_t<decltype(T::impl)> ImplObj);
-  template <class T>
-  friend T detail::createSyclObjFromImpl(
-      std::add_lvalue_reference_t<const decltype(T::impl)> ImplObj);
-  template <class Obj>
-  friend const decltype(Obj::impl) &
-  detail::getSyclObjImpl(const Obj &SyclObject);
+  friend detail::ObjBase<detail::platform_impl, platform>;
 }; // class platform
 
 _LIBSYCL_END_NAMESPACE_SYCL
