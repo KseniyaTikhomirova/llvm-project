@@ -54,7 +54,7 @@ _LIBSYCL_EXPORT const std::error_category &sycl_category() noexcept;
 
 // Derive from std::exception so uncaught exceptions are printed in c++ default
 // exception handler.
-// Virtual inheritance is mandated by SYCL2020.
+// Virtual inheritance is mandated by SYCL 2020.
 // 4.13.2. Exception class interface
 class _LIBSYCL_EXPORT exception : public virtual std::exception {
 public:
@@ -82,7 +82,6 @@ public:
 private:
   // Exceptions must be noexcept copy constructible, so cannot use std::string
   // directly.
-  // TODO: std::string will be converted to ABI neutral later.
   std::shared_ptr<std::string> MMessage;
   std::error_code MErrC = make_error_code(sycl::errc::invalid);
 };

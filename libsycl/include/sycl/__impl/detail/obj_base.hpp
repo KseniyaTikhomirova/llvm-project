@@ -58,6 +58,7 @@ Obj createSyclObjFromImpl(
 }
 
 } // namespace detail
+
 _LIBSYCL_END_NAMESPACE_SYCL
 
 #endif // _LIBSYCL___IMPL_DETAIL_OBJ_BASE_HPP

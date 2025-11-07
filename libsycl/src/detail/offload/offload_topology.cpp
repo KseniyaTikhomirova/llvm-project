@@ -75,4 +75,5 @@ void discoverOffloadDevices() {
 }
 
 } // namespace detail
+
 _LIBSYCL_END_NAMESPACE_SYCL

@@ -95,6 +95,7 @@ private:
 void discoverOffloadDevices();
 
 } // namespace detail
+
 _LIBSYCL_END_NAMESPACE_SYCL
 
 #endif // _LIBSYCL_OFFLOAD_TOPOLOGY

@@ -21,19 +21,18 @@
 _LIBSYCL_BEGIN_NAMESPACE_SYCL
 
 // A.1. Platform information descriptors
-
 namespace info {
+namespace platform {
 #define __SYCL_PARAM_TRAITS_SPEC(DescType, Desc, ReturnT, OffloadCode)         \
   struct Desc {                                                                \
     using return_type = ReturnT;                                               \
   };
 
 // 4.6.2.4. Information descriptors
-namespace platform {
 #include <sycl/__impl/info/platform.def>
-} // namespace platform
 
 #undef __SYCL_PARAM_TRAITS_SPEC
+} // namespace platform
 } // namespace info
 
 namespace detail {

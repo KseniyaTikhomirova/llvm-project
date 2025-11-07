@@ -83,5 +83,3 @@ Limitations
 
 SYCL runtime is not tested and is not guaranteed to work on Windows because offloading runtime (liboffload) used by SYCL runtime doesn't currently support Windows.
 The limitation to be revised once liboffload will add support for Windows.
-
-  

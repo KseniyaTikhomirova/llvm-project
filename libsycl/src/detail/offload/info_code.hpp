@@ -24,6 +24,7 @@ template <typename T> struct OffloadInfoCode;
 #undef __SYCL_PARAM_TRAITS_SPEC
 
 } // namespace detail
+
 _LIBSYCL_END_NAMESPACE_SYCL
 
 #endif // _LIBSYCL_INFO_CODE
