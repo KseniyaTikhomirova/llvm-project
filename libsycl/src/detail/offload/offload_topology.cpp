@@ -11,37 +11,77 @@
 #include <detail/offload/offload_utils.hpp>
 
 #include <array>
-#include <unordered_map>
 
 _LIBSYCL_BEGIN_NAMESPACE_SYCL
 
 namespace detail {
 
+// Platforms for this backend
+range_view<const ol_platform_handle_t> OffloadTopology::getPlatforms() const {
+  return {MPlatforms.data(), MPlatforms.size()};
+}
+
+// Devices for a specific platform (platform_id is index into Platforms)
+range_view<ol_device_handle_t>
+OffloadTopology::getDevices(size_t PlatformId) const {
+  if (PlatformId >= MDeviceRange.size())
+    return {nullptr, 0};
+  return MDeviceRange[PlatformId];
+}
+
+void OffloadTopology::registerNewPlatformsAndDevices(
+    Platform2DevContainer &PlatformsAndDev) {
+  if (!PlatformsAndDev.size())
+    return;
+
+  // MDevices reallocation is prevented to keep correct ranges in MDeviceRange
+  MDevices.reserve(PlatformsAndDev.size());
+
+  for (auto &[Platform, NewDev] : PlatformsAndDev) {
+    MDevices.push_back(NewDev);
+
+    // Platform is not unique within PlatformsAndDev but the container is sorted
+    if (MPlatforms.empty() || MPlatforms.back() != Platform) {
+      MPlatforms.push_back(Platform);
+      range_view<ol_device_handle_t> R{&MDevices.back(), 1 /*Size == 1*/};
+      MDeviceRange.push_back(R);
+    } else {
+      // Device is inserted already, just increment device count for the current
+      // platform
+      MDeviceRange.back().len++;
+    }
+  }
+}
+
 void discoverOffloadDevices() {
   callAndThrow(olInit);
 
+  // liboffload returns devices sorted by backend + platform. We rely on this
+  // behavior during device enumeration.
   using PerBackendDataType =
-      std::array<std::pair<PlatformWithDevStorageType, size_t /*DevCount*/>,
-                 OL_PLATFORM_BACKEND_LAST>;
+      std::array<Platform2DevContainer, OL_PLATFORM_BACKEND_LAST>;
 
   PerBackendDataType Mapping;
   // olIterateDevices calls lambda for every device.
   // Returning early means jump to next iteration/next device.
   callNoCheck(
       olIterateDevices,
-      [](ol_device_handle_t Dev, void *User) -> bool {
-        auto *Data = static_cast<PerBackendDataType *>(User);
-        ol_platform_handle_t Plat = nullptr;
-        ol_result_t Res = callNoCheck(
-            olGetDeviceInfo, Dev, OL_DEVICE_INFO_PLATFORM, sizeof(Plat), &Plat);
-        // If error occurs, ignore platform and continue iteration
+      [](ol_device_handle_t Dev, void *UserData) -> bool {
+        auto *Data = static_cast<PerBackendDataType *>(UserData);
+
+        ol_platform_handle_t Platform = nullptr;
+        ol_result_t Res =
+            callNoCheck(olGetDeviceInfo, Dev, OL_DEVICE_INFO_PLATFORM,
+                         sizeof(Platform), &Platform);
+        // If error occures, ignore device and continue iteration
         if (Res != OL_SUCCESS)
           return true;
 
         ol_platform_backend_t OlBackend = OL_PLATFORM_BACKEND_UNKNOWN;
-        Res = callNoCheck(olGetPlatformInfo, Plat, OL_PLATFORM_INFO_BACKEND,
-                          sizeof(OlBackend), &OlBackend);
-        // If error occurs, ignore platform and continue iteration
+        Res =
+            callNoCheck(olGetPlatformInfo, Platform, OL_PLATFORM_INFO_BACKEND,
+                         sizeof(OlBackend), &OlBackend);
+        // If error occures, ignore device and continue iteration
         if (Res != OL_SUCCESS)
           return true;
 
@@ -54,9 +94,7 @@ void discoverOffloadDevices() {
         if (OlBackend >= OL_PLATFORM_BACKEND_LAST)
           return true;
 
-        auto &[Map, DevCount] = (*Data)[static_cast<size_t>(OlBackend)];
-        Map[Plat].push_back(Dev);
-        DevCount++;
+        (*Data)[static_cast<size_t>(OlBackend)].push_back({Platform, Dev});
         return true;
       },
       &Mapping);
@@ -65,7 +103,7 @@ void discoverOffloadDevices() {
   for (size_t I = 0; I < OL_PLATFORM_BACKEND_LAST; ++I) {
     OffloadTopology &Topo = OffloadTopologies[I];
     Topo.setBackend(static_cast<ol_platform_backend_t>(I));
-    Topo.registerNewPlatformsAndDevices(Mapping[I].first, Mapping[I].second);
+    Topo.registerNewPlatformsAndDevices(Mapping[I]);
   }
 }
 
