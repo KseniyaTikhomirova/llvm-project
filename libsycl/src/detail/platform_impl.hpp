@@ -13,10 +13,12 @@
 #include <sycl/__impl/detail/config.hpp>
 #include <sycl/__impl/platform.hpp>
 
+#include <detail/device_impl.hpp>
 #include <detail/offload/offload_utils.hpp>
 
 #include <OffloadAPI.h>
 
+#include <functional>
 #include <memory>
 #include <string>
 #include <type_traits>
@@ -26,7 +28,10 @@ _LIBSYCL_BEGIN_NAMESPACE_SYCL
 
 namespace detail {
 
+class device_impl;
+
 using PlatformImplUPtr = std::unique_ptr<platform_impl>;
+using DeviceImplUPtr = std::unique_ptr<device_impl>;
 
 class platform_impl {
   struct private_tag {
@@ -75,17 +80,16 @@ public:
   /// \return the platform_impl representing the offloading RT platform
   static platform_impl &getPlatformImpl(ol_platform_handle_t Platform);
 
-  template <typename InfoDesc>
-  static constexpr ol_platform_info_t getOffloadInfo() {
-    if constexpr (std::is_same_v<InfoDesc, sycl::info::platform::version>)
-      return OL_PLATFORM_INFO_VERSION;
-    else if constexpr (std::is_same_v<InfoDesc, sycl::info::platform::name>)
-      return OL_PLATFORM_INFO_NAME;
-    else if constexpr (std::is_same_v<InfoDesc, sycl::info::platform::vendor>)
-      return OL_PLATFORM_INFO_VENDOR_NAME;
-    else
-      static_assert(false && "Convertion list for platform info is not full.");
-  }
+  /// Indicates if all of the SYCL devices on this platform have the
+  /// given feature.
+  ///
+  /// \param Aspect is one of the values in Table 4.20 of the SYCL 2020
+  /// Provisional Spec.
+  ///
+  /// \return true all of the SYCL devices on this platform have the
+  /// given feature.
+  bool has(aspect Aspect) const;
+
   /// Queries this SYCL platform for info.
   ///
   /// The return type depends on information being queried.
@@ -112,11 +116,20 @@ public:
     return Result;
   }
 
+  /// Calls "callback" with every root device of type == DeviceType associated
+  /// with this platform
+  void iterateDevices(info::device_type DeviceType,
+                      std::function<void(device_impl *)> callback) const;
+
 private:
+  const std::vector<DeviceImplUPtr> &getRootDevices() const;
+
   ol_platform_handle_t MOffloadPlatform{};
   size_t MOffloadPlatformIndex{};
   ol_platform_backend_t MOffloadBackend{OL_PLATFORM_BACKEND_UNKNOWN};
   backend MBackend{};
+
+  std::vector<DeviceImplUPtr> MRootDevices;
 };
 
 } // namespace detail

@@ -12,6 +12,7 @@
 #include <sycl/__impl/backend.hpp>
 #include <sycl/__impl/detail/config.hpp>
 #include <sycl/__impl/exception.hpp>
+#include <sycl/__impl/info/device_type.hpp>
 
 #include <OffloadAPI.h>
 
@@ -51,6 +52,9 @@ void call_and_throw(FunctionType &Function, ArgsT &&...Args) {
 }
 
 backend convertBackend(ol_platform_backend_t Backend);
+
+ol_device_type_t convertDeviceTypeToOL(info::device_type DeviceType);
+info::device_type convertDeviceTypeToSYCL(ol_device_type_t DeviceType);
 
 // Helper to map SYCL information descriptors to OL_<HANDLE>_INFO_<SMTH>. To be
 // used like:
