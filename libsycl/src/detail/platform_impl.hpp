@@ -27,18 +27,10 @@ _LIBSYCL_BEGIN_NAMESPACE_SYCL
 
 namespace detail {
 
+class device_impl;
+
 class platform_impl {
 public:
-  /// Constructs platform_impl from a platform handle.
-  ///
-  /// \param Platform is a raw offload library handle representing platform.
-  /// \param PlatformIndex is a platform index in a backend (needed for a proper
-  /// indexing in device selector).
-  //
-  // Platforms can only be created under `GlobalHandler`'s ownership via
-  // `platform_impl::getOrMakePlatformImpl` method.
-  explicit platform_impl(ol_platform_handle_t Platform, size_t PlatformIndex);
-
   ~platform_impl() = default;
 
   /// Returns the backend associated with this platform.
@@ -108,7 +100,19 @@ public:
     return Result;
   }
 
+  range_view<device_impl> get_devices(info::device_type DeviceType = info::device_type::all) const;
+
 private:
+  /// Constructs platform_impl from a platform handle.
+  ///
+  /// \param Platform is a raw offload library handle representing platform.
+  /// \param PlatformIndex is a platform index in a backend (needed for a proper
+  /// indexing in device selector).
+  //
+  // Platforms can only be created under `GlobalHandler`'s ownership via
+  // `platform_impl::getOrMakePlatformImpl` method.
+  explicit platform_impl(ol_platform_handle_t Platform, size_t PlatformIndex);
+
   ol_platform_handle_t MOffloadPlatform{};
   size_t MOffloadPlatformIndex{};
   ol_platform_backend_t MOffloadBackend{OL_PLATFORM_BACKEND_UNKNOWN};

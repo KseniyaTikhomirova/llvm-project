@@ -55,5 +55,52 @@ platform_impl::platform_impl(ol_platform_handle_t Platform,
   MBackend = convertBackend(Backend);
   MOffloadBackend = Backend;
 }
+
+range_view<device_impl> platform_impl::get_devices(info::device_type DeviceType = info::device_type::all) const
+{
+  if (DeviceType == info::device_type::host)
+    return { nullptr, 0 };
+
+  auto RequestedDevType = convertDeviceType(DeviceType);
+  std::vector<ol_device_handle_t> OlDevices;
+  const OffloadTopology &Topo = getOffloadTopology(MOffloadBackend);
+  for (ol_device_handle_t Dev : Topo.devicesForPlatform(MOffloadPlatformIndex)) {
+    if (RequestedDevType != OL_DEVICE_TYPE_ALL)
+    {
+      ol_device_type_t OlDevType = OL_DEVICE_TYPE_ALL;
+      call_and_throw(olGetDeviceInfo(Dev, OL_DEVICE_INFO_TYPE, sizeof(ol_device_type_t), &OlDevType));
+      if (RequestedDevType != OlDevType)
+        continue;
+    }
+
+    OlDevices.push_back(Dev);
+  }
+  // std::transform(OlDevices.begin(), OlDevices.end(), std::back_inserter(OutVec),
+  //                [](const ol_device_handle_t OlDevice) -> device {
+  //                  return detail::createSyclObjFromImpl<device>(PlatformImpl.getOrMakeDeviceImpl(OlDevice));
+  //                });
+
+   return Res;
+}
+
+device_impl *platform_impl::getDeviceImpl(ol_device_handle_t OlDevice) {
+  const std::lock_guard<std::mutex> Guard(MDeviceMapMutex);
+  return getDeviceImplHelper(OlDevice);
+}
+
+device_impl &platform_impl::getOrMakeDeviceImpl(ol_device_handle_t OlDevice) {
+  const std::lock_guard<std::mutex> Guard(MDeviceMapMutex);
+  // If we've already seen this device, return the impl
+  if (device_impl *Result = getDeviceImplHelper(OlDevice))
+    return *Result;
+
+  // Otherwise make the impl
+  MDevices.emplace_back(std::make_shared<device_impl>(
+      OlDevice, *this, device_impl::private_tag{}));
+
+  return *MDevices.back();
+}
+
+
 } // namespace detail
 _LIBSYCL_END_NAMESPACE_SYCL

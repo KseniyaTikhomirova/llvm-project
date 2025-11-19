@@ -10,8 +10,6 @@
 
 #include <detail/platform_impl.hpp>
 
-#include <stdexcept>
-
 _LIBSYCL_BEGIN_NAMESPACE_SYCL
 
 backend platform::get_backend() const noexcept {
