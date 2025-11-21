@@ -17,6 +17,27 @@ _LIBSYCL_BEGIN_NAMESPACE_SYCL
 
 namespace detail {
 
+   void
+  OffloadTopology::registerNewPlatformsAndDevices(PlatformWithDevStorageType &PlatformsAndDev,
+                                 size_t TotalDevCount) {
+    if (!PlatformsAndDev.size())
+      return;
+
+    MPlatforms.reserve(PlatformsAndDev.size());
+    MDevRangePerPlatformId.reserve(MPlatforms.size());
+    MDevices.reserve(TotalDevCount);
+
+    for (auto &[NewPlatform, NewDevs] : PlatformsAndDev) {
+      MPlatforms.push_back(NewPlatform);
+      range_view<ol_device_handle_t> R{MDevices.data() + MDevices.size(),
+                                       NewDevs.size()};
+      MDevices.insert(MDevices.end(), NewDevs.begin(), NewDevs.end());
+      MDevRangePerPlatformId.push_back(R);
+    }
+
+    assert(TotalDevCount == MDevices.size());
+  }
+
 void discoverOffloadDevices() {
   call_and_throw(olInit);
 
@@ -34,7 +55,14 @@ void discoverOffloadDevices() {
         ol_platform_handle_t Plat = nullptr;
         ol_result_t Res = call_nocheck(
             olGetDeviceInfo, Dev, OL_DEVICE_INFO_PLATFORM, sizeof(Plat), &Plat);
-        // If error occures, ignore platform and continue iteration
+        // If error occures, ignore device and continue iteration
+        if (Res != OL_SUCCESS)
+          return true;
+
+        ol_device_type_t DevType = OL_DEVICE_TYPE_ALL;
+        Res = call_nocheck(
+            olGetDeviceInfo, Dev, OL_DEVICE_INFO_TYPE, sizeof(DevType), &DevType);
+        // If error occures, ignore device and continue iteration
         if (Res != OL_SUCCESS)
           return true;
 
@@ -45,6 +73,7 @@ void discoverOffloadDevices() {
         if (Res != OL_SUCCESS)
           return true;
 
+        assert(!OL_PLATFORM_BACKEND_HOST || DevType == OL_DEVICE_TYPE_HOST);
         // Skip host & unknown backends
         if (OL_PLATFORM_BACKEND_HOST == OlBackend ||
             OL_PLATFORM_BACKEND_UNKNOWN == OlBackend)
@@ -55,7 +84,7 @@ void discoverOffloadDevices() {
           return true;
 
         auto &[Map, DevCount] = (*Data)[static_cast<size_t>(OlBackend)];
-        Map[Plat].push_back(Dev);
+        Map[Plat].insert({DevType, Dev});
         DevCount++;
         return true;
       },

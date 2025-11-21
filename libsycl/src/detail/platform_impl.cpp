@@ -56,31 +56,34 @@ platform_impl::platform_impl(ol_platform_handle_t Platform,
   MOffloadBackend = Backend;
 }
 
-range_view<device_impl> platform_impl::get_devices(info::device_type DeviceType = info::device_type::all) const
+range_view<device_impl> platform_impl::get_devices(info::device_type RequestedDevType) const
 {
-  if (DeviceType == info::device_type::host)
+  if (RequestedDevType == info::device_type::host)
     return { nullptr, 0 };
 
-  auto RequestedDevType = convertDeviceType(DeviceType);
-  std::vector<ol_device_handle_t> OlDevices;
-  const OffloadTopology &Topo = getOffloadTopology(MOffloadBackend);
-  for (ol_device_handle_t Dev : Topo.devicesForPlatform(MOffloadPlatformIndex)) {
-    if (RequestedDevType != OL_DEVICE_TYPE_ALL)
-    {
-      ol_device_type_t OlDevType = OL_DEVICE_TYPE_ALL;
-      call_and_throw(olGetDeviceInfo(Dev, OL_DEVICE_INFO_TYPE, sizeof(ol_device_type_t), &OlDevType));
-      if (RequestedDevType != OlDevType)
-        continue;
+  [[maybe_unused]] static auto InitRootDevicesOnce = []() {
+    const OffloadTopology &Topo = getOffloadTopology(MOffloadBackend);
+    auto DevRange = Topo.devicesForPlatform(MOffloadPlatformIndex);
+    MRootDevices.resize(DevRange.size());
+    for (auto& [Dev, DevType] : DevRange) {
+      MRootDevices.push_back(device_impl(Dev, *this));
+      auto SYCLDevType = convertDeviceTypeToSYCL(DevType);
+      if (auto it = MDevRangePerType.find(SYCLDevType); it != MDevRangePerType.end())
+        it->second.len++;
+      else
+        MDevRangePerType[SYCLDevType] = {MRootDevices.back(), 1};
     }
+  }();
 
-    OlDevices.push_back(Dev);
-  }
-  // std::transform(OlDevices.begin(), OlDevices.end(), std::back_inserter(OutVec),
-  //                [](const ol_device_handle_t OlDevice) -> device {
-  //                  return detail::createSyclObjFromImpl<device>(PlatformImpl.getOrMakeDeviceImpl(OlDevice));
-  //                });
+  if (RequestedDevType == info::device_type::all)
+    return {MRootDevices.data(), MRootDevices.size()};
 
-   return Res;
+  // handle automatic!
+
+  if (auto it = MDevRangePerType.find(RequestedDevType); it != MDevRangePerType.end())
+    return *it;
+  else 
+    return { nullptr, 0 };
 }
 
 device_impl *platform_impl::getDeviceImpl(ol_device_handle_t OlDevice) {

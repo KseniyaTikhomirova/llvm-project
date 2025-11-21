@@ -14,10 +14,7 @@
 
 _LIBSYCL_BEGIN_NAMESPACE_SYCL
 namespace detail {
-    class device_impl : public std::enable_shared_from_this<device_impl> {
-  struct private_tag {
-    explicit private_tag() = default;
-  };
+  class device_impl {
 
 public:
   /// Constructs a SYCL device instance using the provided
@@ -25,16 +22,21 @@ public:
   //
   // Must be called through `platform_impl::getOrMakeDeviceImpl` only.
   // `private_tag` ensures that is true.
-  explicit device_impl(ur_device_handle_t Device, platform_impl &Platform,
-                       private_tag);
+  explicit device_impl(ol_device_handle_t Device, platform_impl &Platform);
 
   ~device_impl();
 
-  bool is_cpu() const {  return false;  }
+  info::device_type getDeviceType()
+  {
+    // get info
+    return info::device_type::gpu;
+  }
 
-  bool is_gpu() const {    return true;  }
+  bool is_cpu() const { return getDeviceType() == info::device_type::cpu; }
 
-  bool is_accelerator() const { return false; }
+  bool is_gpu() const { return getDeviceType() == info::device_type::gpu; }
+
+  bool is_accelerator() const { return getDeviceType() == info::device_type::accelerator;  }
 
   backend getBackend() const { return MPlatform.getBackend(); }
 

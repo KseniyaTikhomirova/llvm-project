@@ -6,7 +6,7 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// The "sycl-ls" utility lists all platforms discovered by SYCL.
+// The "sycl-ls" utility lists all platforms & devices discovered by SYCL.
 //
 // There are two types of output:
 //   concise (default) and
@@ -21,14 +21,53 @@
 using namespace sycl;
 using namespace std::literals;
 
+std::string getDeviceTypeName(const device &Device) {
+  auto DeviceType = Device.get_info<info::device::device_type>();
+  switch (DeviceType) {
+  case info::device_type::cpu:
+    return "cpu";
+  case info::device_type::gpu:
+    return "gpu";
+  case info::device_type::host:
+    return "host";
+  case info::device_type::accelerator:
+    return "fpga";
+  default:
+    return "unknown";
+  }
+}
+
+static void printDeviceInfo(const device &Device, bool Verbose,
+                            const std::string &Prepend) {
+  auto DeviceVersion = Device.get_info<info::device::version>();
+  auto DeviceName = Device.get_info<info::device::name>();
+  auto DeviceVendor = Device.get_info<info::device::vendor>();
+  auto DeviceDriverVersion = Device.get_info<info::device::driver_version>();
+
+  if (Verbose) {
+    std::cout << Prepend << "Type              : " << getDeviceTypeName(Device)
+              << std::endl;
+    std::cout << Prepend << "Version           : " << DeviceVersion
+              << std::endl;
+    std::cout << Prepend << "Name              : " << DeviceName << std::endl;
+    std::cout << Prepend << "Vendor            : " << DeviceVendor << std::endl;
+    std::cout << Prepend << "Driver            : " << DeviceDriverVersion
+              << std::endl;
+    // add aspects printing
+  } else {
+    std::cout << Prepend << ", " << DeviceName << " " << DeviceVersion << " ["
+              << DeviceDriverVersion << "]" << std::endl;
+  }
+}
+
 int main(int argc, char **argv) {
   llvm::cl::opt<bool> Verbose(
       "verbose",
-      llvm::cl::desc("Verbosely prints all the discovered platforms"));
+      llvm::cl::desc("Verbosely prints all the discovered devices"));
   llvm::cl::alias VerboseShort("v", llvm::cl::desc("Alias for -verbose"),
                                llvm::cl::aliasopt(Verbose));
   llvm::cl::ParseCommandLineOptions(
-      argc, argv, "This program lists all backends discovered by SYCL");
+      argc, argv, "This program lists all devices discovered by SYCL");
 
   try {
     const auto &Platforms = platform::get_platforms();
@@ -39,8 +78,17 @@ int main(int argc, char **argv) {
 
     for (const auto &Platform : Platforms) {
       backend Backend = Platform.get_backend();
-      std::cout << "[" << detail::get_backend_name(Backend) << ":"
-                << "unknown" << "]" << std::endl;
+      auto PlatformName = Platform.get_info<info::platform::name>();
+      const auto &Devices = Platform.get_devices();
+
+      for (const auto &Device : Devices) {
+        std::cout << "[" << detail::get_backend_name(Backend) << ":"
+                  << getDeviceTypeName(Device) << "]";
+        std::cout << " ";
+        // Verbose parameter is set to false to print regular devices output
+        // first
+        printDeviceInfo(Device, false, PlatformName);
+      }
     }
 
     if (Verbose) {
@@ -56,7 +104,12 @@ int main(int argc, char **argv) {
         std::cout << "    Name     : " << PlatformName << std::endl;
         std::cout << "    Vendor   : " << PlatformVendor << std::endl;
 
-        std::cout << "    Devices  : " << "unknown" << std::endl;
+        const auto &Devices = Platform.get_devices();
+        std::cout << "    Devices  : " << Devices.size() << std::endl;
+        for (const auto &Device : Devices) {
+          // ktikhomi prepend - can be done better?
+          printDeviceInfo(Device, true, "        ");
+        }
       }
     } else {
       return EXIT_SUCCESS;

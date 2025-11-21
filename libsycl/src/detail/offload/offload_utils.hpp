@@ -51,7 +51,9 @@ void call_and_throw(FunctionType &Function, ArgsT &&...Args) {
 }
 
 backend convertBackend(ol_platform_backend_t Backend);
-ol_device_type_t convertDeviceType(info::device_type DevType);
+
+ol_device_type_t convertDeviceTypeToOL(info::device_type DevType);
+info::device_type convertDeviceTypeToSYCL(ol_device_type_t DeviceType);
 
 /// Helper to map SYCL information descriptors to OL_<HANDLE>_INFO_<SMTH>. To be
 /// used like:

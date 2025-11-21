@@ -42,4 +42,37 @@ std::vector<device> device::get_devices(info::device_type deviceType) {
   return Devices;
 }
 
+template <info::partition_property prop>
+std::vector<device> device::create_sub_devices(size_t ComputeUnits) const {
+  throw exception(make_error_code(errc::feature_not_supported),
+                    "Partitioning is not supported.");
+}
+
+template _LIBSYCL_EXPORT std::vector<device>
+device::create_sub_devices<info::partition_property::partition_equally>(
+    size_t ComputeUnits) const;
+
+template <info::partition_property prop>
+std::vector<device>
+device::create_sub_devices(const std::vector<size_t> &Counts) const {
+    throw exception(make_error_code(errc::feature_not_supported),
+                    "Partitioning is not supported.");
+}
+
+template _LIBSYCL_EXPORT std::vector<device>
+device::create_sub_devices<info::partition_property::partition_by_counts>(
+    const std::vector<size_t> &Counts) const;
+
+template <info::partition_property prop>
+std::vector<device> device::create_sub_devices(
+    info::partition_affinity_domain AffinityDomain) const {
+    throw exception(make_error_code(errc::feature_not_supported),
+                    "Partitioning is not supported.");
+}
+
+template _LIBSYCL_EXPORT std::vector<device> device::create_sub_devices<
+    info::partition_property::partition_by_affinity_domain>(
+    info::partition_affinity_domain AffinityDomain) const;
+
+
 _LIBSYCL_END_NAMESPACE_SYCL

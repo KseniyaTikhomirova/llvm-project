@@ -15,15 +15,19 @@
 #ifndef _LIBSYCL___IMPL_DEVICE_HPP
 #define _LIBSYCL___IMPL_DEVICE_HPP
 
+#include <sycl/__impl/backend.hpp>
+
+#include <sycl/__impl/detail/config.hpp>
+#include <sycl/__impl/detail/obj_base.hpp>
 
 _LIBSYCL_BEGIN_NAMESPACE_SYCL
+
+class platform;
+enum class aspect;
 
 namespace detail {
 class device_impl;
 } // namespace detail
-
-class platform;
-enum class aspect;
 
 // 4.6.4. Device class
 class  _LIBSYCL_EXPORT device
@@ -92,6 +96,51 @@ public:
   /// \return true if SYCL device supports the extension.
   // __SYCL2020_DEPRECATED("use device::has() function with aspects APIs instead")
   // bool has_extension(const std::string& extension) const;
+
+    /// Partition device into sub devices
+  ///
+  /// Available only when prop is info::partition_property::partition_equally.
+  /// If this SYCL device does not support
+  /// info::partition_property::partition_equally a feature_not_supported
+  /// exception must be thrown.
+  ///
+  /// \param ComputeUnits is a desired count of compute units in each sub
+  /// device.
+  /// \return A vector class of sub devices partitioned from this SYCL
+  /// device equally based on the ComputeUnits parameter.
+  template <info::partition_property prop>
+  std::vector<device> create_sub_devices(size_t ComputeUnits) const;
+
+  /// Partition device into sub devices
+  ///
+  /// Available only when prop is info::partition_property::partition_by_counts.
+  /// If this SYCL device does not support
+  /// info::partition_property::partition_by_counts a feature_not_supported
+  /// exception must be thrown.
+  ///
+  /// \param Counts is a std::vector of desired compute units in sub devices.
+  /// \return a std::vector of sub devices partitioned from this SYCL device by
+  /// count sizes based on the Counts parameter.
+  template <info::partition_property prop>
+  std::vector<device>
+  create_sub_devices(const std::vector<size_t> &Counts) const;
+
+  /// Partition device into sub devices
+  ///
+  /// Available only when prop is
+  /// info::partition_property::partition_by_affinity_domain. If this SYCL
+  /// device does not support
+  /// info::partition_property::partition_by_affinity_domain or the SYCL device
+  /// does not support info::affinity_domain provided a feature_not_supported
+  /// exception must be thrown.
+  ///
+  /// \param AffinityDomain is one of the values described in Table 4.20 of SYCL
+  /// Spec
+  /// \return a vector class of sub devices partitioned from this SYCL
+  /// device by affinity domain based on the AffinityDomain parameter
+  template <info::partition_property prop>
+  std::vector<device>
+  create_sub_devices(info::partition_affinity_domain AffinityDomain) const;
 
   /// Query available SYCL devices
   ///

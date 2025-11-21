@@ -100,7 +100,7 @@ public:
     return Result;
   }
 
-  range_view<device_impl> get_devices(info::device_type DeviceType = info::device_type::all) const;
+  range_view<device_impl> getRootDevices(info::device_type DeviceType = info::device_type::all) const;
 
 private:
   /// Constructs platform_impl from a platform handle.
@@ -117,6 +117,9 @@ private:
   size_t MOffloadPlatformIndex{};
   ol_platform_backend_t MOffloadBackend{OL_PLATFORM_BACKEND_UNKNOWN};
   backend MBackend{};
+
+  std::vector<device_impl> MRootDevices;
+  std::unordered_map<info::device_type, range_view<device_impl>> MDevRangePerType;
 };
 
 } // namespace detail
