@@ -16,6 +16,7 @@
 #define _LIBSYCL___IMPL_DEVICE_HPP
 
 #include <sycl/__impl/backend.hpp>
+#include <sycl/__impl/device_selector.hpp>
 
 #include <sycl/__impl/detail/config.hpp>
 #include <sycl/__impl/detail/obj_base.hpp>
@@ -40,11 +41,11 @@ public:
   /// identified by the device selector provided.
   /// \param DeviceSelector is SYCL 2020 Device Selector, a simple callable that
   /// takes a device and returns an int
-  template <typename DeviceSelector,
-            typename =
-                detail::EnableIfSYCL2020DeviceSelectorInvocable<DeviceSelector>>
+  template <
+      typename DeviceSelector,
+      typename = detail::EnableIfDeviceSelectorIsInvocable<DeviceSelector>>
   explicit device(const DeviceSelector &deviceSelector)
-      : device(detail::select_device(deviceSelector)) {}
+      : device(detail::SelectDevice(deviceSelector)) {}
 
   /// Returns the backend associated with this device.
   ///

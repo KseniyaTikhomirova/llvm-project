@@ -76,6 +76,7 @@ set(LIBSYCL_SOURCES
     "exception.cpp"
     "exception_list.cpp"
     "device.cpp"
+    "device_selector.cpp"
     "platform.cpp"
     "detail/device_impl.cpp"
     "detail/global_objects.cpp"
