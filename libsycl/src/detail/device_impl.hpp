@@ -42,6 +42,10 @@ public:
 
   platform_impl &getPlatformImpl() const { return MPlatform; }
 
+  // template <typename Param> typename Param::return_type get_info() const {
+  //   // todo
+  // }
+
 private:
   ol_device_handle_t MDevice ={};
   platform_impl &MPlatform;

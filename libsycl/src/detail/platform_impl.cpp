@@ -61,7 +61,7 @@ range_view<device_impl> platform_impl::get_devices(info::device_type RequestedDe
   if (RequestedDevType == info::device_type::host)
     return { nullptr, 0 };
 
-  [[maybe_unused]] static auto InitRootDevicesOnce = []() {
+  [[maybe_unused]] static auto InitRootDevicesOnce = [&]() {
     const OffloadTopology &Topo = getOffloadTopology(MOffloadBackend);
     auto DevRange = Topo.devicesForPlatform(MOffloadPlatformIndex);
     MRootDevices.resize(DevRange.size());

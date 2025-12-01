@@ -17,6 +17,7 @@
 
 #include <sycl/__impl/backend.hpp>
 #include <sycl/__impl/device_selector.hpp>
+#include <sycl/__impl/info/device.hpp>
 
 #include <sycl/__impl/detail/config.hpp>
 #include <sycl/__impl/detail/obj_base.hpp>
@@ -31,8 +32,8 @@ class device_impl;
 } // namespace detail
 
 // 4.6.4. Device class
-class  _LIBSYCL_EXPORT device
-    : public detail::ObjBase<detail::device_impl&, device> {
+class _LIBSYCL_EXPORT device
+    : public detail::ObjBase<detail::device_impl *, device> {
 public:
   /// Constructs a SYCL device instance using the default device.
   device();
@@ -76,10 +77,8 @@ public:
   /// parameter param
   ///
   /// \return device info of type described in 4.6.4.4. Information descriptors.
-  // template <typename Param>
-  // typename detail::is_device_info_desc<Param>::return_type get_info() const {
-  //   return detail::convert_from_abi_neutral(get_info_impl<Param>());
-  // }
+  template <typename Param>
+  detail::is_device_info_desc_t<Param> get_info() const;
 
   /// Queries this SYCL device for SYCL backend-specific information.
   ///
@@ -152,8 +151,8 @@ public:
   get_devices(info::device_type deviceType = info::device_type::all);
 
 private:
-  device(const detail::device_impl& Impl) : ObjBase(Impl) {}
-  friend detail::ObjBase<detail::device_impl&, device>;
+  device(detail::device_impl *Impl) : ObjBase(Impl) {}
+  friend detail::ObjBase<detail::device_impl *, device>;
 };
 
 _LIBSYCL_END_NAMESPACE_SYCL

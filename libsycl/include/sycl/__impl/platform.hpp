@@ -18,12 +18,15 @@
 #include <sycl/__impl/backend.hpp>
 #include <sycl/__impl/detail/config.hpp>
 #include <sycl/__impl/detail/obj_base.hpp>
+#include <sycl/__impl/info/device_type.hpp>
 #include <sycl/__impl/info/platform.hpp>
 
 #include <memory>
 #include <vector>
 
 _LIBSYCL_BEGIN_NAMESPACE_SYCL
+
+class device;
 
 namespace detail {
 class platform_impl;
@@ -68,9 +71,8 @@ public:
   ///
   /// \param DeviceType is a SYCL device type.
   /// \return a vector of SYCL devices.
-  // std::vector<device>
-  //     get_devices(info::device_type DeviceType = info::device_type::all)
-  //     const;
+  std::vector<device>
+  get_devices(info::device_type DeviceType = info::device_type::all) const;
 
   /// Queries this SYCL platform for info.
   ///

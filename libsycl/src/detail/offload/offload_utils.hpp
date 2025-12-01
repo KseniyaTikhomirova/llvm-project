@@ -12,6 +12,7 @@
 #include <sycl/__impl/backend.hpp>
 #include <sycl/__impl/detail/config.hpp>
 #include <sycl/__impl/exception.hpp>
+#include <sycl/__impl/info/device_type.hpp>
 
 #include <OffloadAPI.h>
 
