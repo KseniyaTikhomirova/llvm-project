@@ -39,7 +39,6 @@ std::string getDeviceTypeName(const device &Device) {
 
 static void printDeviceInfo(const device &Device, bool Verbose,
                             const std::string &Prepend) {
-  auto DeviceVersion = Device.get_info<info::device::version>();
   auto DeviceName = Device.get_info<info::device::name>();
   auto DeviceVendor = Device.get_info<info::device::vendor>();
   auto DeviceDriverVersion = Device.get_info<info::device::driver_version>();
@@ -47,16 +46,13 @@ static void printDeviceInfo(const device &Device, bool Verbose,
   if (Verbose) {
     std::cout << Prepend << "Type              : " << getDeviceTypeName(Device)
               << std::endl;
-    std::cout << Prepend << "Version           : " << DeviceVersion
-              << std::endl;
     std::cout << Prepend << "Name              : " << DeviceName << std::endl;
     std::cout << Prepend << "Vendor            : " << DeviceVendor << std::endl;
     std::cout << Prepend << "Driver            : " << DeviceDriverVersion
               << std::endl;
-    // add aspects printing
   } else {
-    std::cout << Prepend << ", " << DeviceName << " " << DeviceVersion << " ["
-              << DeviceDriverVersion << "]" << std::endl;
+    std::cout << Prepend << ", " << DeviceName << " [" << DeviceDriverVersion
+              << "]" << std::endl;
   }
 }
 
