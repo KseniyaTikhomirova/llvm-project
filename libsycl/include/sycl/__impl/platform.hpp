@@ -15,6 +15,7 @@
 #ifndef _LIBSYCL___IMPL_PLATFORM_HPP
 #define _LIBSYCL___IMPL_PLATFORM_HPP
 
+#include <sycl/__impl/aspect.hpp>
 #include <sycl/__impl/backend.hpp>
 #include <sycl/__impl/detail/config.hpp>
 #include <sycl/__impl/detail/obj_base.hpp>
@@ -80,9 +81,12 @@ public:
   template <typename Param>
   detail::is_platform_info_desc_t<Param> get_info() const;
 
-  // template <typename Param>
-  // typename detail::is_backend_info_desc<Param>::return_type
-  // get_backend_info() const;
+  /// Queries this SYCL platform for SYCL backend-specific information.
+  ///
+  /// The return type depends on information being queried.
+  template <typename Param>
+  typename detail::is_backend_info_desc<Param>::return_type
+  get_backend_info() const;
 
   /// Indicates if all of the SYCL devices on this platform have the
   /// given feature.
@@ -92,7 +96,7 @@ public:
   ///
   /// \return true if all of the SYCL devices on this platform have the
   /// given feature.
-  // bool has(aspect Aspect) const;
+  bool has(aspect Aspect) const;
 
   /// Checks if platform supports specified extension.
   ///

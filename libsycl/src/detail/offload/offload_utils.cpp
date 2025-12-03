@@ -61,8 +61,7 @@ backend convertBackend(ol_platform_backend_t Backend) {
   }
 }
 
-ol_device_type_t convertDeviceTypeToOL(info::device_type DevType)
-{
+ol_device_type_t convertDeviceTypeToOL(info::device_type DeviceType) {
   switch (DeviceType) {
   case info::device_type::all:
     return OL_DEVICE_TYPE_ALL;

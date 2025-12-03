@@ -21,6 +21,7 @@
 #include <memory>
 #include <string>
 #include <type_traits>
+#include <unordered_map>
 #include <vector>
 
 _LIBSYCL_BEGIN_NAMESPACE_SYCL
@@ -74,6 +75,17 @@ public:
     else
       static_assert(false && "Convertion list for platform info is not full.");
   }
+
+  /// Indicates if all of the SYCL devices on this platform have the
+  /// given feature.
+  ///
+  /// \param Aspect is one of the values in Table 4.20 of the SYCL 2020
+  /// Provisional Spec.
+  ///
+  /// \return true all of the SYCL devices on this platform have the
+  /// given feature.
+  bool has(aspect Aspect) const;
+
   /// Queries this SYCL platform for info.
   ///
   /// The return type depends on information being queried.

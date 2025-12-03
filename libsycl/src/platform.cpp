@@ -28,6 +28,8 @@ std::vector<platform> platform::get_platforms() {
   return Platforms;
 }
 
+bool platform::has(aspect Aspect) const { return getImpl().has(Aspect); }
+
 template <typename Param>
 detail::is_platform_info_desc_t<Param> platform::get_info() const {
   return getImpl().get_info<Param>();

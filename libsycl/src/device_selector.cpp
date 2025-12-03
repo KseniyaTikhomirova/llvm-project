@@ -9,6 +9,10 @@
 #include <sycl/__impl/device.hpp>
 #include <sycl/__impl/device_selector.hpp>
 
+#include <detail/device_impl.hpp>
+
+#include <algorithm>
+
 _LIBSYCL_BEGIN_NAMESPACE_SYCL
 
 static constexpr int MatchedTypeDefaultScore = 1000;
@@ -19,7 +23,7 @@ static constexpr int RejectDeviceScore = -1;
 
 static int getDevicePreference(const device &Device) {
   int Score = 0;
-  const device_impl &DeviceImpl = getSyclObjImpl(Device);
+  const detail::device_impl &DeviceImpl = getSyclObjImpl(Device);
 
   // TODO: increase score for devices with compatible dev images
 
@@ -41,30 +45,28 @@ _LIBSYCL_EXPORT int default_selector_v(const device &dev) {
   if (dev.is_accelerator())
     Score += AccDeviceDefaultScore;
 
-  Score += detail::getDevicePreference(dev);
+  Score += getDevicePreference(dev);
 
   return Score;
 }
 
 _LIBSYCL_EXPORT int gpu_selector_v(const device &dev) {
-  return dev.is_gpu()
-             ? MatchedTypeDeviceScore + detail::getDevicePreference(dev)
-             : RejectDeviceScore;
+  return dev.is_gpu() ? MatchedTypeDefaultScore + getDevicePreference(dev)
+                      : RejectDeviceScore;
 }
 
 _LIBSYCL_EXPORT int cpu_selector_v(const device &dev) {
-  return dev.is_cpu()
-             ? MatchedTypeDeviceScore + detail::getDevicePreference(dev)
-             : RejectDeviceScore;
+  return dev.is_cpu() ? MatchedTypeDefaultScore + getDevicePreference(dev)
+                      : RejectDeviceScore;
 }
 
 _LIBSYCL_EXPORT int accelerator_selector_v(const device &dev) {
   return dev.is_accelerator()
-             ? MatchedTypeDeviceScore + detail::getDevicePreference(dev)
+             ? MatchedTypeDefaultScore + getDevicePreference(dev)
              : RejectDeviceScore;
 }
 
-_LIBSYCL_EXPORT detail::DSelectorInvocableType
+_LIBSYCL_EXPORT detail::DeviceSelectorInvocableType
 aspect_selector(const std::vector<aspect> &RequireList,
                 const std::vector<aspect> &DenyList) {
   return [=](const sycl::device &Dev) {
@@ -83,13 +85,13 @@ aspect_selector(const std::vector<aspect> &RequireList,
     if (std::any_of(DenyList.begin(), DenyList.end(), HasAspect))
       return RejectDeviceScore;
 
-    return MatchedTypeDefaultScore + detail::getDevicePreference(Dev);
+    return MatchedTypeDefaultScore + getDevicePreference(Dev);
   };
 }
 
 namespace detail {
 
-__SYCL_EXPORT device
+_LIBSYCL_EXPORT device
 select_device(const DeviceSelectorInvocableType &DeviceSelector) {
   int ChosenDeviceScore = RejectDeviceScore;
   const device *ChosenDevice = nullptr;
@@ -139,19 +141,6 @@ select_device(const DeviceSelectorInvocableType &DeviceSelector) {
   throw exception(Errc, DefaultMessage);
 }
 
-_LIBSYCL_EXPORT device select_device(
-    const DeviceSelectorInvocableType &DeviceSelector, const context &Context) {
-  device SelectedDevice = select_device(DeviceSelector);
-
-  std::vector<device> Devices = Context.get_devices();
-  if (std::find(Devices.begin(), Devices.end(), SelectedDevice) ==
-      Devices.end())
-    throw sycl::exception(
-        sycl::make_error_code(errc::invalid),
-        "Given context does not contain the device selected by deviceSelector");
-
-  return SelectedDevice;
-}
 } // namespace detail
 
 _LIBSYCL_END_NAMESPACE_SYCL

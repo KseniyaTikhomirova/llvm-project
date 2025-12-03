@@ -6,8 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef _LIBSYCL___IMPL_INFO_DEVICE_TYPE_HPP
-#define _LIBSYCL___IMPL_INFO_DEVICE_TYPE_HPP
+#ifndef _LIBSYCL___IMPL_ASPECT_HPP
+#define _LIBSYCL___IMPL_ASPECT_HPP
 
 #include <sycl/__impl/detail/config.hpp>
 
@@ -15,21 +15,29 @@
 
 _LIBSYCL_BEGIN_NAMESPACE_SYCL
 
-namespace info {
-
-// 4.6.4.7.1. Device type
-enum class device_type : std::uint32_t {
-  cpu = 0,
+// 4.6.4.5. Aspects
+enum class aspect : std::uint32_t {
+  cpu,
   gpu,
   accelerator,
   custom,
-  automatic,
-  host, // Deprecated by SYCL 2020
-  all
+  emulated,
+  host_debuggable,
+  fp16,
+  fp64,
+  atomic64,
+  image,
+  online_compiler,
+  online_linker,
+  queue_profiling,
+  usm_device_allocations,
+  usm_host_allocations,
+  usm_atomic_host_allocations,
+  usm_shared_allocations,
+  usm_atomic_shared_allocations,
+  usm_system_allocations
 };
-
-} // namespace info
 
 _LIBSYCL_END_NAMESPACE_SYCL
 
-#endif // _LIBSYCL___IMPL_INFO_DEVICE_TYPE_HPP
+#endif // _LIBSYCL___IMPL_ASPECT_HPP

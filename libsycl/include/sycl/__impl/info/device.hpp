@@ -14,6 +14,7 @@
 #ifndef _LIBSYCL___IMPL_INFO_DEVICE_HPP
 #define _LIBSYCL___IMPL_INFO_DEVICE_HPP
 
+#include <sycl/__impl/aspect.hpp>
 #include <sycl/__impl/detail/config.hpp>
 #include <sycl/__impl/info/desc_base.hpp>
 #include <sycl/__impl/info/device_type.hpp>

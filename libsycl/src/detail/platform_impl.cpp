@@ -9,8 +9,11 @@
 #include <sycl/__impl/detail/config.hpp>
 #include <sycl/__impl/detail/obj_base.hpp>
 
+#include <detail/device_impl.hpp>
 #include <detail/global_objects.hpp>
 #include <detail/platform_impl.hpp>
+
+#include <algorithm>
 
 _LIBSYCL_BEGIN_NAMESPACE_SYCL
 
@@ -56,15 +59,23 @@ platform_impl::platform_impl(ol_platform_handle_t Platform,
   MOffloadBackend = Backend;
 }
 
-range_view<device_impl> platform_impl::get_devices(info::device_type RequestedDevType) const
-{
+range_view<device_impl>
+platform_impl::getRootDevices(info::device_type RequestedDevType) const {
   if (RequestedDevType == info::device_type::host)
     return { nullptr, 0 };
 
   [[maybe_unused]] static auto InitRootDevicesOnce = [&]() {
-    const OffloadTopology &Topo = getOffloadTopology(MOffloadBackend);
-    auto DevRange = Topo.devicesForPlatform(MOffloadPlatformIndex);
-    MRootDevices.resize(DevRange.size());
+    const auto &Topologies = getOffloadTopologies();
+    auto RootTopologyIt =
+        std::find_if(Topologies.begin(), Topologies.end(),
+                     [MOffloadBackend](const OffloadTopology &Topo) {
+                       return Topo.backend() == MOffloadBackend;
+                     });
+
+    assert(RootTopologyIt != Topologies.end() &&
+           "Root topology for platform must always exist");
+    auto DevRange = RootTopologyIt->devicesForPlatform(MOffloadPlatformIndex);
+    MRootDevices.reserve(DevRange.size());
     for (auto& [Dev, DevType] : DevRange) {
       MRootDevices.push_back(device_impl(Dev, *this));
       auto SYCLDevType = convertDeviceTypeToSYCL(DevType);
@@ -86,24 +97,12 @@ range_view<device_impl> platform_impl::get_devices(info::device_type RequestedDe
     return { nullptr, 0 };
 }
 
-device_impl *platform_impl::getDeviceImpl(ol_device_handle_t OlDevice) {
-  const std::lock_guard<std::mutex> Guard(MDeviceMapMutex);
-  return getDeviceImplHelper(OlDevice);
+bool platform_impl::has(aspect Aspect) const {
+  const auto &Devices = getRootDevices();
+  return std::all_of(
+      Devices.begin(), Devices.end(),
+      [&Aspect](const device_impl &Device) { return Device.has(Aspect); });
 }
-
-device_impl &platform_impl::getOrMakeDeviceImpl(ol_device_handle_t OlDevice) {
-  const std::lock_guard<std::mutex> Guard(MDeviceMapMutex);
-  // If we've already seen this device, return the impl
-  if (device_impl *Result = getDeviceImplHelper(OlDevice))
-    return *Result;
-
-  // Otherwise make the impl
-  MDevices.emplace_back(std::make_shared<device_impl>(
-      OlDevice, *this, device_impl::private_tag{}));
-
-  return *MDevices.back();
-}
-
 
 } // namespace detail
 _LIBSYCL_END_NAMESPACE_SYCL

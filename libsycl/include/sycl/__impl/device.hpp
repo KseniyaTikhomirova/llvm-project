@@ -15,6 +15,7 @@
 #ifndef _LIBSYCL___IMPL_DEVICE_HPP
 #define _LIBSYCL___IMPL_DEVICE_HPP
 
+#include <sycl/__impl/aspect.hpp>
 #include <sycl/__impl/backend.hpp>
 #include <sycl/__impl/device_selector.hpp>
 #include <sycl/__impl/info/device.hpp>
@@ -25,7 +26,6 @@
 _LIBSYCL_BEGIN_NAMESPACE_SYCL
 
 class platform;
-enum class aspect;
 
 namespace detail {
 class device_impl;
@@ -83,21 +83,15 @@ public:
   /// Queries this SYCL device for SYCL backend-specific information.
   ///
   /// The return type depends on information being queried.
-  // typename detail::is_backend_info_desc<Param>::return_type
-  //     get_backend_info() const;
+  template <typename Param>
+  typename detail::is_backend_info_desc<Param>::return_type
+  get_backend_info() const;
 
   /// Queries which optional features this device supports (if any).
   /// \return true if this device has the given aspect
-  // bool has(aspect asp) const;
+  bool has(aspect asp) const;
 
-  /// Check SYCL extension support by device
-  ///
-  /// \param extension_name is a name of queried extension.
-  /// \return true if SYCL device supports the extension.
-  // __SYCL2020_DEPRECATED("use device::has() function with aspects APIs instead")
-  // bool has_extension(const std::string& extension) const;
-
-    /// Partition device into sub devices
+  /// Partition device into sub devices
   ///
   /// Available only when prop is info::partition_property::partition_equally.
   /// If this SYCL device does not support

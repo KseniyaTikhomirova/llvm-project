@@ -10,25 +10,23 @@
 
 #include <detail/device_impl.hpp>
 
+#include <algorithm>
+
 _LIBSYCL_BEGIN_NAMESPACE_SYCL
 
 device::device() : device(default_selector_v) {}
 
-device::device(const device_selector &deviceSelector) {
-  *this = deviceSelector.select_device();
+bool device::is_cpu() const { return getImpl().is_cpu(); }
+
+bool device::is_gpu() const { return getImpl().is_gpu(); }
+
+bool device::is_accelerator() const { return getImpl().is_accelerator(); }
+
+platform device::get_platform() const {
+  return createSyclObjFromImpl<platform>(&getImpl().getPlatformImpl());
 }
 
-bool device::is_cpu() const { return impl.is_cpu(); }
-
-bool device::is_gpu() const { return impl.is_gpu(); }
-
-bool device::is_accelerator() const { return impl.is_accelerator(); }
-
-platform device::get_platform() const { 
-  return createSyclObjFromImpl<platform>(impl.getPlatformImpl());
-}
-
-backend device::get_backend() const noexcept { return impl.getBackend(); }
+backend device::get_backend() const noexcept { return getImpl().getBackend(); }
 
 std::vector<device> device::get_devices(info::device_type deviceType) {
   std::vector<device> Devices;
@@ -36,7 +34,8 @@ std::vector<device> device::get_devices(info::device_type deviceType) {
   auto Platforms = platform::get_platforms();
   for (const auto &Platform : Platforms) {
     auto PlatformDevices = Platform.get_devices(deviceType);
-    std::transform(PlatformDevices.begin(), PlatformDevices.end(), std::back_inserter(Devices));
+    std::copy(PlatformDevices.begin(), PlatformDevices.end(),
+              std::back_inserter(Devices));
   }
 
   return Devices;
@@ -73,6 +72,8 @@ std::vector<device> device::create_sub_devices(
 template _LIBSYCL_EXPORT std::vector<device> device::create_sub_devices<
     info::partition_property::partition_by_affinity_domain>(
     info::partition_affinity_domain AffinityDomain) const;
+
+bool device::has(aspect Aspect) const { return getImpl().has(Aspect); }
 
 template <typename Param>
 detail::is_device_info_desc_t<Param> device::get_info() const {

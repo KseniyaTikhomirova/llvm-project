@@ -29,8 +29,8 @@ namespace detail {
 
     for (auto &[NewPlatform, NewDevs] : PlatformsAndDev) {
       MPlatforms.push_back(NewPlatform);
-      range_view<ol_device_handle_t> R{MDevices.data() + MDevices.size(),
-                                       NewDevs.size()};
+      range_view<std::pair<ol_device_handle_t, ol_device_type_t>> R{
+          MDevices.data() + MDevices.size(), NewDevs.size()};
       MDevices.insert(MDevices.end(), NewDevs.begin(), NewDevs.end());
       MDevRangePerPlatformId.push_back(R);
     }

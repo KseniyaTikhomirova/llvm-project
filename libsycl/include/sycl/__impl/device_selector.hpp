@@ -15,6 +15,7 @@
 #ifndef _LIBSYCL___IMPL_DEVICE_SELECTOR_HPP
 #define _LIBSYCL___IMPL_DEVICE_SELECTOR_HPP
 
+#include <sycl/__impl/aspect.hpp>
 #include <sycl/__impl/detail/config.hpp>
 
 #include <functional>
@@ -23,7 +24,6 @@ _LIBSYCL_BEGIN_NAMESPACE_SYCL
 
 class device;
 class context;
-enum class aspect;
 
 namespace detail {
 
@@ -39,9 +39,6 @@ using EnableIfDeviceSelectorIsInvocable = std::enable_if_t<
 
 _LIBSYCL_EXPORT device
 SelectDevice(const DeviceSelectorInvocableType &DeviceSelector);
-
-_LIBSYCL_EXPORT device SelectDevice(
-    const DeviceSelectorInvocableType &DeviceSelector, const context &Context);
 
 } // namespace detail
 
