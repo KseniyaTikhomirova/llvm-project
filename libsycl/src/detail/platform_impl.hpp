@@ -14,7 +14,6 @@
 #include <sycl/__impl/platform.hpp>
 
 #include <detail/common.hpp>
-#include <detail/device_impl.hpp>
 #include <detail/offload/offload_utils.hpp>
 
 #include <OffloadAPI.h>
@@ -22,7 +21,6 @@
 #include <memory>
 #include <string>
 #include <type_traits>
-#include <unordered_map>
 #include <vector>
 
 _LIBSYCL_BEGIN_NAMESPACE_SYCL
@@ -32,7 +30,19 @@ namespace detail {
 class device_impl;
 
 class platform_impl {
+  struct private_tag {
+    explicit private_tag() = default;
+  };
 public:
+  /// Constructs platform_impl from a platform handle.
+  ///
+  /// \param Platform is a raw offload library handle representing platform.
+  /// \param PlatformIndex is a platform index in a backend (needed for a proper
+  /// indexing in device selector).
+  //
+  // Platforms can only be created under `GlobalHandler`'s ownership via
+  // `platform_impl::getOrMakePlatformImpl` method.
+  explicit platform_impl(ol_platform_handle_t Platform, size_t PlatformIndex, private_tag);
   ~platform_impl() = default;
 
   /// Returns the backend associated with this platform.
@@ -40,7 +50,7 @@ public:
 
   /// Returns range-view to all SYCL platforms from all backends that are
   /// available in the system.
-  static range_view<platform_impl> getPlatforms();
+  static const std::vector<std::unique_ptr<platform_impl>>& getPlatforms();
 
   /// Returns raw underlying offload platform handle.
   ///
@@ -113,26 +123,16 @@ public:
     return Result;
   }
 
-  const std::vector<device_impl>& getRootDevices() const;
+  const std::vector<std::unique_ptr<device_impl>>& getRootDevices() const;
 
 private:
-  /// Constructs platform_impl from a platform handle.
-  ///
-  /// \param Platform is a raw offload library handle representing platform.
-  /// \param PlatformIndex is a platform index in a backend (needed for a proper
-  /// indexing in device selector).
-  //
-  // Platforms can only be created under `GlobalHandler`'s ownership via
-  // `platform_impl::getOrMakePlatformImpl` method.
-  explicit platform_impl(ol_platform_handle_t Platform, size_t PlatformIndex);
 
   ol_platform_handle_t MOffloadPlatform{};
   size_t MOffloadPlatformIndex{};
   ol_platform_backend_t MOffloadBackend{OL_PLATFORM_BACKEND_UNKNOWN};
   backend MBackend{};
 
-  std::vector<device_impl> MRootDevices;
-  std::unordered_map<info::device_type, range_view<device_impl>> MDevRangePerType;
+  std::vector<std::unique_ptr<device_impl>> MRootDevices;
 };
 
 } // namespace detail

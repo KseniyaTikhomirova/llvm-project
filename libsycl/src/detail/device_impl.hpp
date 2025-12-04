@@ -12,6 +12,7 @@
 #include <sycl/__impl/detail/config.hpp>
 #include <sycl/__impl/device.hpp>
 
+#include <detail/platform_impl.hpp>
 #include <detail/offload/offload_utils.hpp>
 
 #include <OffloadAPI.h>
@@ -19,19 +20,20 @@
 _LIBSYCL_BEGIN_NAMESPACE_SYCL
 namespace detail {
 
-class platform_impl;
-
 class device_impl {
-  /// Constructs a SYCL device instance using the provided
-  /// UR device instance.
-  //
-  // Must be called through `platform_impl` method only.
-  explicit device_impl(ol_device_handle_t Device, platform_impl &Platform)
-      : MOffloadDevice(Device), MPlatform(Platform) {}
+  struct private_tag {
+    explicit private_tag() = default;
+  };
   friend class platform_impl;
 
 public:
-  ~device_impl();
+  /// Constructs a SYCL device instance using the provided
+  /// UR device instance.
+  //
+  // Must be called through `platform_impl` method only. `private_tag` ensures that is true.
+  explicit device_impl(ol_device_handle_t Device, platform_impl &Platform, private_tag)
+      : MOffloadDevice(Device), MPlatform(Platform) {}
+  ~device_impl() = default;
 
   info::device_type getDeviceType() const {
     // TODO: get info

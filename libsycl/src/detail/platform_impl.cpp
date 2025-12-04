@@ -14,6 +14,7 @@
 #include <detail/platform_impl.hpp>
 
 #include <algorithm>
+#include <memory>
 
 _LIBSYCL_BEGIN_NAMESPACE_SYCL
 
@@ -22,8 +23,9 @@ namespace detail {
 platform_impl &platform_impl::getPlatformImpl(ol_platform_handle_t Platform) {
   auto &PlatformCache = getPlatformCache();
   for (auto &PlatImpl : PlatformCache) {
-    if (PlatImpl.getHandleRef() == Platform)
-      return PlatImpl;
+    assert(PlatImpl && "Platform impl can not be nullptr");
+    if (PlatImpl->getHandleRef() == Platform)
+      return *PlatImpl;
   }
 
   throw sycl::exception(
@@ -32,25 +34,24 @@ platform_impl &platform_impl::getPlatformImpl(ol_platform_handle_t Platform) {
       "the list of platforms discovered by liboffload");
 }
 
-range_view<platform_impl> platform_impl::getPlatforms() {
+const std::vector<std::unique_ptr<platform_impl>>& platform_impl::getPlatforms() {
   [[maybe_unused]] static auto InitPlatformsOnce = []() {
     discoverOffloadDevices();
+
     auto &PlatformCache = getPlatformCache();
     for (const auto &Topo : getOffloadTopologies()) {
       size_t PlatformIndex = 0;
       for (const auto &OffloadPlatform : Topo.platforms()) {
-        PlatformCache.emplace_back(
-            platform_impl(OffloadPlatform, PlatformIndex++));
+        PlatformCache.emplace_back(std::make_unique<platform_impl>(OffloadPlatform, PlatformIndex++, private_tag{}));
       }
     }
     return true;
   }();
-  auto &PlatformCache = getPlatformCache();
-  return {PlatformCache.data(), PlatformCache.size()};
+  return getPlatformCache();
 }
 
 platform_impl::platform_impl(ol_platform_handle_t Platform,
-                             size_t PlatformIndex)
+                             size_t PlatformIndex, private_tag)
     : MOffloadPlatform(Platform), MOffloadPlatformIndex(PlatformIndex) {
   ol_platform_backend_t Backend = OL_PLATFORM_BACKEND_UNKNOWN;
   call_and_throw(olGetPlatformInfo, MOffloadPlatform, OL_PLATFORM_INFO_BACKEND,
@@ -69,12 +70,12 @@ platform_impl::platform_impl(ol_platform_handle_t Platform,
            "Root topology for platform must always exist");
     auto DevRange = RootTopologyIt->devicesForPlatform(MOffloadPlatformIndex);
     MRootDevices.reserve(DevRange.size());
-    std::transform(DevRange.begin(), DevRange.end(), std::back_inserter(MRootDevices), [&](const ol_device_handle_t& Device){
-      MRootDevices.push_back(device_impl(Device, *this));
+    std::for_each(DevRange.begin(), DevRange.end(), [&](const ol_device_handle_t& Device){
+      MRootDevices.emplace_back(std::make_unique<device_impl>(Device, *this, device_impl::private_tag{}));
     });
 }
 
-const std::vector<device_impl>&
+const std::vector<std::unique_ptr<device_impl>>&
 platform_impl::getRootDevices() const {
   return MRootDevices;
 }
@@ -83,7 +84,7 @@ bool platform_impl::has(aspect Aspect) const {
   const auto &Devices = getRootDevices();
   return std::all_of(
       Devices.begin(), Devices.end(),
-      [&Aspect](const device_impl &Device) { return Device.has(Aspect); });
+      [&Aspect](const std::unique_ptr<device_impl> &Device) { return Device->has(Aspect); });
 }
 
 } // namespace detail

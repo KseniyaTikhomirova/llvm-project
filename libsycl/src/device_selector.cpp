@@ -92,7 +92,7 @@ aspect_selector(const std::vector<aspect> &RequireList,
 namespace detail {
 
 _LIBSYCL_EXPORT device
-select_device(const DeviceSelectorInvocableType &DeviceSelector) {
+SelectDevice(const DeviceSelectorInvocableType &DeviceSelector) {
   int ChosenDeviceScore = RejectDeviceScore;
   const device *ChosenDevice = nullptr;
 

@@ -18,13 +18,11 @@ backend platform::get_backend() const noexcept {
 }
 
 std::vector<platform> platform::get_platforms() {
-  auto PlatformsView = detail::platform_impl::getPlatforms();
+  auto& PlatformImpls = detail::platform_impl::getPlatforms();
   std::vector<platform> Platforms;
-  Platforms.reserve(PlatformsView.size());
-  for (size_t i = 0; i < PlatformsView.size(); i++) {
-    platform Platform =
-        detail::createSyclObjFromImpl<platform>(&PlatformsView[i]);
-    Platforms.push_back(std::move(Platform));
+  Platforms.reserve(PlatformImpls.size());
+  for (auto& PlatformImpl : PlatformImpls) {
+    Platforms.emplace_back(detail::createSyclObjFromImpl<platform>(PlatformImpl.get()));
   }
   return Platforms;
 }
@@ -41,8 +39,8 @@ std::vector<device> platform::get_devices(info::device_type DeviceType) const {
   bool KeepAll = DeviceType == info::device_type::all;
   for (auto& Impl : DeviceImpls)
   {
-    if (KeepAll || DeviceType == Impl.getDeviceType())
-      Devices.push_back(createSyclObjFromImpl<device>(&Impl));
+    if (KeepAll || DeviceType == Impl->getDeviceType())
+      Devices.push_back(detail::createSyclObjFromImpl<device>(Impl.get()));
   }
 
   return Devices;

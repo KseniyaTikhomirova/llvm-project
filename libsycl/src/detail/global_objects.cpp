@@ -8,6 +8,7 @@
 
 #include <detail/global_objects.hpp>
 #include <detail/platform_impl.hpp>
+#include <detail/device_impl.hpp>
 
 #ifdef _WIN32
 #  include <windows.h>
@@ -24,8 +25,8 @@ std::vector<detail::OffloadTopology> &getOffloadTopologies() {
   return Topologies;
 }
 
-std::vector<platform_impl> &getPlatformCache() {
-  static std::vector<platform_impl> PlatformCache{};
+std::vector<std::unique_ptr<platform_impl>> &getPlatformCache() {
+  static std::vector<std::unique_ptr<platform_impl>> PlatformCache{};
   return PlatformCache;
 }
 
