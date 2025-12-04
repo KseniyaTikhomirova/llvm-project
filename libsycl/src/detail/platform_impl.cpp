@@ -57,18 +57,11 @@ platform_impl::platform_impl(ol_platform_handle_t Platform,
                  sizeof(Backend), &Backend);
   MBackend = convertBackend(Backend);
   MOffloadBackend = Backend;
-}
 
-range_view<device_impl>
-platform_impl::getRootDevices(info::device_type RequestedDevType) const {
-  if (RequestedDevType == info::device_type::host)
-    return { nullptr, 0 };
-
-  [[maybe_unused]] static auto InitRootDevicesOnce = [&]() {
-    const auto &Topologies = getOffloadTopologies();
+  const auto &Topologies = getOffloadTopologies();
     auto RootTopologyIt =
         std::find_if(Topologies.begin(), Topologies.end(),
-                     [MOffloadBackend](const OffloadTopology &Topo) {
+                     [&](const OffloadTopology &Topo) {
                        return Topo.backend() == MOffloadBackend;
                      });
 
@@ -76,25 +69,14 @@ platform_impl::getRootDevices(info::device_type RequestedDevType) const {
            "Root topology for platform must always exist");
     auto DevRange = RootTopologyIt->devicesForPlatform(MOffloadPlatformIndex);
     MRootDevices.reserve(DevRange.size());
-    for (auto& [Dev, DevType] : DevRange) {
-      MRootDevices.push_back(device_impl(Dev, *this));
-      auto SYCLDevType = convertDeviceTypeToSYCL(DevType);
-      if (auto it = MDevRangePerType.find(SYCLDevType); it != MDevRangePerType.end())
-        it->second.len++;
-      else
-        MDevRangePerType[SYCLDevType] = {MRootDevices.back(), 1};
-    }
-  }();
+    std::transform(DevRange.begin(), DevRange.end(), std::back_inserter(MRootDevices), [&](const ol_device_handle_t& Device){
+      MRootDevices.push_back(device_impl(Device, *this));
+    });
+}
 
-  if (RequestedDevType == info::device_type::all)
-    return {MRootDevices.data(), MRootDevices.size()};
-
-  // handle automatic!
-
-  if (auto it = MDevRangePerType.find(RequestedDevType); it != MDevRangePerType.end())
-    return *it;
-  else 
-    return { nullptr, 0 };
+const std::vector<device_impl>&
+platform_impl::getRootDevices() const {
+  return MRootDevices;
 }
 
 bool platform_impl::has(aspect Aspect) const {

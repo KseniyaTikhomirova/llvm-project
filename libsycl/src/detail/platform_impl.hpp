@@ -14,6 +14,7 @@
 #include <sycl/__impl/platform.hpp>
 
 #include <detail/common.hpp>
+#include <detail/device_impl.hpp>
 #include <detail/offload/offload_utils.hpp>
 
 #include <OffloadAPI.h>
@@ -112,7 +113,7 @@ public:
     return Result;
   }
 
-  range_view<device_impl> getRootDevices(info::device_type DeviceType = info::device_type::all) const;
+  const std::vector<device_impl>& getRootDevices() const;
 
 private:
   /// Constructs platform_impl from a platform handle.

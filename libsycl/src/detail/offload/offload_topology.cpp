@@ -17,63 +17,59 @@ _LIBSYCL_BEGIN_NAMESPACE_SYCL
 
 namespace detail {
 
-   void
-  OffloadTopology::registerNewPlatformsAndDevices(PlatformWithDevStorageType &PlatformsAndDev,
-                                 size_t TotalDevCount) {
+void
+  OffloadTopology::registerNewPlatformsAndDevices(Platform2DevContainer &PlatformsAndDev) {
     if (!PlatformsAndDev.size())
       return;
 
-    MPlatforms.reserve(PlatformsAndDev.size());
-    MDevRangePerPlatformId.reserve(MPlatforms.size());
-    MDevices.reserve(TotalDevCount);
+    // MDevices reallocation is prevented to keep correct ranges in MDeviceRange
+    MDevices.reserve(PlatformsAndDev.size());
 
-    for (auto &[NewPlatform, NewDevs] : PlatformsAndDev) {
-      MPlatforms.push_back(NewPlatform);
-      range_view<std::pair<ol_device_handle_t, ol_device_type_t>> R{
-          MDevices.data() + MDevices.size(), NewDevs.size()};
-      MDevices.insert(MDevices.end(), NewDevs.begin(), NewDevs.end());
-      MDevRangePerPlatformId.push_back(R);
+    for (auto &[Platform, NewDev] : PlatformsAndDev) {  
+      MDevices.push_back(NewDev);
+
+      // Platform is not unique within PlatformsAndDev but the container is sorted
+      if (MPlatforms.empty() || MPlatforms.back() != Platform)
+      {
+        MPlatforms.push_back(Platform);
+        range_view<ol_device_handle_t> R{&MDevices.back(), 1 /*Size == 1*/};
+        MDeviceRange.push_back(R);
+      }
+      else
+      {
+        // Device is inserted already, just increment device count for the current platform
+        MDeviceRange.back().len++;
+      } 
     }
-
-    assert(TotalDevCount == MDevices.size());
   }
 
 void discoverOffloadDevices() {
   call_and_throw(olInit);
 
-  using PerBackendDataType =
-      std::array<std::pair<PlatformWithDevStorageType, size_t /*DevCount*/>,
-                 OL_PLATFORM_BACKEND_LAST>;
+  using PerBackendDataType = std::array<Platform2DevContainer, OL_PLATFORM_BACKEND_LAST>;
 
   PerBackendDataType Mapping;
   // olIterateDevices calls lambda for every device.
   // Returning early means jump to next iteration/next device.
   call_nocheck(
       olIterateDevices,
-      [](ol_device_handle_t Dev, void *User) -> bool {
-        auto *Data = static_cast<PerBackendDataType *>(User);
-        ol_platform_handle_t Plat = nullptr;
-        ol_result_t Res = call_nocheck(
-            olGetDeviceInfo, Dev, OL_DEVICE_INFO_PLATFORM, sizeof(Plat), &Plat);
-        // If error occures, ignore device and continue iteration
-        if (Res != OL_SUCCESS)
-          return true;
+      [](ol_device_handle_t Dev, void *UserData) -> bool {
+        auto *Data = static_cast<PerBackendDataType *>(UserData);
 
-        ol_device_type_t DevType = OL_DEVICE_TYPE_ALL;
-        Res = call_nocheck(
-            olGetDeviceInfo, Dev, OL_DEVICE_INFO_TYPE, sizeof(DevType), &DevType);
+        ol_platform_handle_t Platform = nullptr;
+        ol_result_t Res = call_nocheck(
+            olGetDeviceInfo, Dev, OL_DEVICE_INFO_PLATFORM, sizeof(Platform), &Platform);
         // If error occures, ignore device and continue iteration
         if (Res != OL_SUCCESS)
           return true;
 
         ol_platform_backend_t OlBackend = OL_PLATFORM_BACKEND_UNKNOWN;
-        Res = call_nocheck(olGetPlatformInfo, Plat, OL_PLATFORM_INFO_BACKEND,
+        Res = call_nocheck(olGetPlatformInfo, Platform, OL_PLATFORM_INFO_BACKEND,
                            sizeof(OlBackend), &OlBackend);
-        // If error occures, ignore platform and continue iteration
+        // If error occures, ignore device and continue iteration
         if (Res != OL_SUCCESS)
           return true;
 
-        assert(!OL_PLATFORM_BACKEND_HOST || DevType == OL_DEVICE_TYPE_HOST);
         // Skip host & unknown backends
         if (OL_PLATFORM_BACKEND_HOST == OlBackend ||
             OL_PLATFORM_BACKEND_UNKNOWN == OlBackend)
@@ -83,9 +79,7 @@ void discoverOffloadDevices() {
         if (OlBackend >= OL_PLATFORM_BACKEND_LAST)
           return true;
 
-        auto &[Map, DevCount] = (*Data)[static_cast<size_t>(OlBackend)];
-        Map[Plat].insert({DevType, Dev});
-        DevCount++;
+        (*Data)[static_cast<size_t>(OlBackend)].push_back({Platform, Dev});
         return true;
       },
       &Mapping);
@@ -94,7 +88,7 @@ void discoverOffloadDevices() {
   for (size_t I = 0; I < OL_PLATFORM_BACKEND_LAST; ++I) {
     OffloadTopology &Topo = OffloadTopologies[I];
     Topo.set_backend(static_cast<ol_platform_backend_t>(I));
-    Topo.registerNewPlatformsAndDevices(Mapping[I].first, Mapping[I].second);
+    Topo.registerNewPlatformsAndDevices(Mapping[I]);
   }
 }
 

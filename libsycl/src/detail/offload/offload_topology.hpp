@@ -24,8 +24,7 @@ _LIBSYCL_BEGIN_NAMESPACE_SYCL
 
 namespace detail {
 
-using PlatformWithDevStorageType =
-    std::unordered_map<ol_platform_handle_t, std::multimap<ol_device_type_t, ol_device_handle_t>>;
+using Platform2DevContainer = std::vector<std::pair<ol_platform_handle_t, ol_device_handle_t>>;
 
 // Contiguous global storage of platform handlers and device handles (grouped by
 // platform) for a backend.
@@ -41,16 +40,15 @@ struct OffloadTopology {
   }
 
   // Devices for a specific platform (platform_id is index into Platforms)
-  range_view<std::pair<ol_device_handle_t, ol_device_type_t>> devicesForPlatform(size_t PlatformId) const {
-    if (PlatformId >= MDevRangePerPlatformId.size())
+  range_view<ol_device_handle_t> devicesForPlatform(size_t PlatformId) const {
+    if (PlatformId >= MDeviceRange.size())
       return {nullptr, 0};
-    return MDevRangePerPlatformId[PlatformId];
+    return MDeviceRange[PlatformId];
   }
 
   // Register new platform and devices into this topology under that platform.
   void
-  registerNewPlatformsAndDevices(PlatformWithDevStorageType &PlatformsAndDev,
-                                 size_t TotalDevCount);
+  registerNewPlatformsAndDevices(Platform2DevContainer &PlatformsAndDev);
 
   ol_platform_backend_t backend() const { return MBackend; }
 
@@ -59,12 +57,14 @@ private:
 
   // Platforms and devices belonging to this backend (flattened)
   std::vector<ol_platform_handle_t> MPlatforms;
-  std::vector<std::pair<ol_device_handle_t, ol_device_type_t>> MDevices; // sorted by platform and type
+
+  // Devices are sorted by platform (guarantee from liboffload)
+  std::vector<ol_device_handle_t> MDevices;
 
   // Vector holding range of devices for each platform (index is platform index
-  // within Platforms)
-  std::vector<range_view<std::pair<ol_device_handle_t, ol_device_type_t>>>
-      MDevRangePerPlatformId; // PlatformDevices.size() == Platforms.size()
+  // within Platforms), so PlatformDevices.size() == Platforms.size()
+  std::vector<range_view<ol_device_handle_t>>
+      MDeviceRange;
 };
 
 // Initialize the topologies by calling olIterateDevices.

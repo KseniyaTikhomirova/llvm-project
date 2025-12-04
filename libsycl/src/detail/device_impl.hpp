@@ -13,12 +13,14 @@
 #include <sycl/__impl/device.hpp>
 
 #include <detail/offload/offload_utils.hpp>
-#include <detail/platform_impl.hpp>
 
 #include <OffloadAPI.h>
 
 _LIBSYCL_BEGIN_NAMESPACE_SYCL
 namespace detail {
+
+class platform_impl;
+
 class device_impl {
   /// Constructs a SYCL device instance using the provided
   /// UR device instance.
@@ -42,29 +44,11 @@ public:
 
   bool is_accelerator() const { return getDeviceType() == info::device_type::accelerator;  }
 
-  backend getBackend() const { return MPlatform.getBackend(); }
+  backend getBackend() const;
 
   platform_impl &getPlatformImpl() const { return MPlatform; }
 
-  bool has(aspect Aspect) const {
-    switch (Aspect) {
-    case (aspect::cpu):
-      return is_cpu();
-    case (aspect::gpu):
-      return is_gpu();
-    case (aspect::accelerator):
-      return is_accelerator();
-    case (aspect::custom):
-      return false;
-    case (aspect::emulated):
-      return false;
-    case (aspect::host_debuggable):
-      return false;
-    default:
-      // Other aspects are not implemented yet
-      return false;
-    }
-  }
+  bool has(aspect Aspect) const;
 
   template <typename Param> typename Param::return_type get_info() const {
     using namespace info::device;

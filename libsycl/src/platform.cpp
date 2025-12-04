@@ -9,6 +9,7 @@
 #include <sycl/__impl/platform.hpp>
 
 #include <detail/platform_impl.hpp>
+#include <detail/device_impl.hpp>
 
 _LIBSYCL_BEGIN_NAMESPACE_SYCL
 
@@ -26,6 +27,25 @@ std::vector<platform> platform::get_platforms() {
     Platforms.push_back(std::move(Platform));
   }
   return Platforms;
+}
+
+std::vector<device> platform::get_devices(info::device_type DeviceType) const {
+  // Early exit if host device is requested
+  if (DeviceType == info::device_type::host)
+    return {};
+
+  // handle automatic!
+  std::vector<device> Devices;
+  const auto& DeviceImpls = getImpl().getRootDevices();
+
+  bool KeepAll = DeviceType == info::device_type::all;
+  for (auto& Impl : DeviceImpls)
+  {
+    if (KeepAll || DeviceType == Impl.getDeviceType())
+      Devices.push_back(createSyclObjFromImpl<device>(&Impl));
+  }
+
+  return Devices;
 }
 
 bool platform::has(aspect Aspect) const { return getImpl().has(Aspect); }

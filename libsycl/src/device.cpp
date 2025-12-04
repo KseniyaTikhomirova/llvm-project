@@ -9,6 +9,7 @@
 #include <sycl/__impl/device.hpp>
 
 #include <detail/device_impl.hpp>
+#include <detail/platform_impl.hpp>
 
 #include <algorithm>
 
@@ -28,14 +29,25 @@ platform device::get_platform() const {
 
 backend device::get_backend() const noexcept { return getImpl().getBackend(); }
 
-std::vector<device> device::get_devices(info::device_type deviceType) {
+std::vector<device> device::get_devices(info::device_type DeviceType) {
+    // Early exit if host device is requested
+  if (DeviceType == info::device_type::host)
+    return {};
+
+  // handle automatic!
   std::vector<device> Devices;
 
-  auto Platforms = platform::get_platforms();
-  for (const auto &Platform : Platforms) {
-    auto PlatformDevices = Platform.get_devices(deviceType);
-    std::copy(PlatformDevices.begin(), PlatformDevices.end(),
-              std::back_inserter(Devices));
+  // Not calling platform::get_devices to avoid multiple vector packing
+  for (auto PlatformImpl : detail::platform_impl::getPlatforms())
+  {
+    auto DeviceImpls = PlatformImpl.getRootDevices();
+
+    bool KeepAll = DeviceType == info::device_type::all;
+    for (auto& Impl : DeviceImpls)
+    {
+      if (KeepAll || DeviceType == Impl.getDeviceType())
+        Devices.push_back(createSyclObjFromImpl<device>(&Impl));
+    }
   }
 
   return Devices;
