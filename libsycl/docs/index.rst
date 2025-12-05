@@ -1,6 +1,6 @@
-=====================
+===========================
 SYCL runtime implementation
-=====================
+===========================
 
 .. contents::
    :local:
@@ -8,7 +8,7 @@ SYCL runtime implementation
 .. _index:
 
 Current Status
-========
+==============
 
 The implementation is in the very early stages of upstreaming. The first milestone is to get
 support for a simple SYCL application with device code using Unified Shared Memory:
@@ -54,7 +54,7 @@ This requires at least partial support of the following functionality on the lib
   * Program manager, an internal component for retrieving and using device images from the multi-architectural binaries
 
 Build steps
-========
+===========
 
 To build LLVM with libsycl runtime enabled the following script can be used.
 
@@ -79,7 +79,7 @@ To build LLVM with libsycl runtime enabled the following script can be used.
 
 
 Limitations
-========
+===========
 
 SYCL runtime is not tested and is not guaranteed to work on Windows because offloading runtime (liboffload) used by SYCL runtime doesn't currently support Windows.
 The limitation to be revised once liboffload will add support for Windows.
