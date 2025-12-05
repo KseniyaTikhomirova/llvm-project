@@ -36,8 +36,7 @@ public:
   ~device_impl() = default;
 
   info::device_type getDeviceType() const {
-    // TODO: get info
-    return info::device_type::gpu;
+    return get_info<info::device::device_type>();
   }
 
   bool is_cpu() const { return getDeviceType() == info::device_type::cpu; }
@@ -65,24 +64,22 @@ public:
     size_t ExpectedSize = 0;
     call_and_throw(olGetDeviceInfoSize, MOffloadDevice, olInfo, &ExpectedSize);
 
-    using DescType = typename Param::return_type;
-    return DescType{};
-    // if constexpr (std::is_same_v<DescType, std::string>) {
-    //   std::string Result;
-    //   Result.resize(ExpectedSize - 1);
-    //   call_and_throw(olGetDeviceInfo, MOffloadDevice, olInfo, ExpectedSize,
-    //                  Result.data());
-    //   return Result;
-    // } else {
-    //   assert((sizeof(DescType) == ExpectedSize) &&
-    //          "Size of info descriptor reported by backend doesn't match with
-    //          " "expected.");
-    //   DescType Result{};
-    //   call_and_throw(olGetDeviceInfo, MOffloadDevice, olInfo, sizeof(Result),
-    //                  &Result.data());
-    //  // ktikhomi add convertion, we don't have 1:1 values mapping
-    //   return Result;
-    // }
+    if constexpr (std::is_same_v<typename Param::return_type, std::string>) {
+      std::string Result;
+      Result.resize(ExpectedSize - 1);
+      call_and_throw(olGetDeviceInfo, MOffloadDevice, olInfo, ExpectedSize,
+                     Result.data());
+      return Result;
+    } else if constexpr (olInfo == OL_DEVICE_INFO_TYPE) {
+      assert((sizeof(DescType) == ExpectedSize) &&
+             "Size of info descriptor reported by backend doesn't match with "
+             "expected.");
+      ol_device_type_t olType{};
+      call_and_throw(olGetDeviceInfo, MOffloadDevice, olInfo, sizeof(olType),
+                     &olType);
+      return convertDeviceTypeToSYCL(olType);
+    } else
+      static_assert(false && "Info descriptor is not properly supported");
   }
 
 private:

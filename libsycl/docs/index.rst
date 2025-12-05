@@ -83,3 +83,20 @@ Limitations
 
 SYCL runtime is not tested and is not guaranteed to work on Windows because offloading runtime (liboffload) used by SYCL runtime doesn't currently support Windows.
 The limitation to be revised once liboffload will add support for Windows.
+
+TODO for added SYCL classes
+===========================
+
+* ``exception``: methods with context are not implemented, to add once context is ready
+* ``platform``: deprecated info descriptor is not implemented (info::platform::extensions), to implement on RT level with ``device::get_info<info::device::aspects>()``
+* ``device``:
+
+  * ``get_info``: to find an efficient way to map descriptors to liboffload types, add other descriptors, add cache of info data
+  * ``has(aspect)``: same as get_info
+  * ``create_sub_devices``: partitioning is not supported by liboffload now, blocked
+  * ``has_extension``: deprecated API, to implement on RT level with ``device::has``
+
+* device selection: to add compatibility with old SYCL 1.2.1 device selectors, still part of SYCL 2020 specification
+
+
+
