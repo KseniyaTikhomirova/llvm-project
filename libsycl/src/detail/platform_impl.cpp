@@ -34,7 +34,7 @@ platform_impl &platform_impl::getPlatformImpl(ol_platform_handle_t Platform) {
       "the list of platforms discovered by liboffload");
 }
 
-const std::vector<std::unique_ptr<platform_impl>>& platform_impl::getPlatforms() {
+const std::vector<PlatformImplUPtr> &platform_impl::getPlatforms() {
   [[maybe_unused]] static auto InitPlatformsOnce = []() {
     discoverOffloadDevices();
 
@@ -75,8 +75,7 @@ platform_impl::platform_impl(ol_platform_handle_t Platform,
     });
 }
 
-const std::vector<std::unique_ptr<device_impl>>&
-platform_impl::getRootDevices() const {
+const std::vector<DeviceImplUPtr> &platform_impl::getRootDevices() const {
   return MRootDevices;
 }
 
@@ -84,7 +83,7 @@ bool platform_impl::has(aspect Aspect) const {
   const auto &Devices = getRootDevices();
   return std::all_of(
       Devices.begin(), Devices.end(),
-      [&Aspect](const std::unique_ptr<device_impl> &Device) { return Device->has(Aspect); });
+      [&Aspect](const DeviceImplUPtr &Device) { return Device->has(Aspect); });
 }
 
 } // namespace detail

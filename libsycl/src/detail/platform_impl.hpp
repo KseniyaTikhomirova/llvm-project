@@ -29,6 +29,9 @@ namespace detail {
 
 class device_impl;
 
+using PlatformImplUPtr = std::unique_ptr<platform_impl>;
+using DeviceImplUPtr = std::unique_ptr<device_impl>;
+
 class platform_impl {
   struct private_tag {
     explicit private_tag() = default;
@@ -50,7 +53,7 @@ public:
 
   /// Returns range-view to all SYCL platforms from all backends that are
   /// available in the system.
-  static const std::vector<std::unique_ptr<platform_impl>>& getPlatforms();
+  static const std::vector<PlatformImplUPtr> &getPlatforms();
 
   /// Returns raw underlying offload platform handle.
   ///
@@ -123,7 +126,7 @@ public:
     return Result;
   }
 
-  const std::vector<std::unique_ptr<device_impl>>& getRootDevices() const;
+  const std::vector<DeviceImplUPtr> &getRootDevices() const;
 
 private:
 
@@ -132,7 +135,7 @@ private:
   ol_platform_backend_t MOffloadBackend{OL_PLATFORM_BACKEND_UNKNOWN};
   backend MBackend{};
 
-  std::vector<std::unique_ptr<device_impl>> MRootDevices;
+  std::vector<DeviceImplUPtr> MRootDevices;
 };
 
 } // namespace detail
