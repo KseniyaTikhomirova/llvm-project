@@ -30,25 +30,16 @@ platform device::get_platform() const {
 backend device::get_backend() const noexcept { return getImpl().getBackend(); }
 
 std::vector<device> device::get_devices(info::device_type DeviceType) {
-    // Early exit if host device is requested
-  if (DeviceType == info::device_type::host)
-    return {};
-
-  // handle automatic!
   std::vector<device> Devices;
 
   // Not calling platform::get_devices to avoid multiple vector packing
   for (auto& PlatformImpl : detail::platform_impl::getPlatforms())
   {
     assert(platformImpl && "platform_impl can not be nullptr");
-    const auto& DeviceImpls = PlatformImpl->getRootDevices();
-
-    bool KeepAll = DeviceType == info::device_type::all;
-    for (auto& Impl : DeviceImpls)
-    {
-      if (KeepAll || DeviceType == Impl->getDeviceType())
-        Devices.push_back(detail::createSyclObjFromImpl<device>(Impl.get()));
-    }
+    PlatformImpl->iterateDevices(
+        DeviceType, [&Devices](detail::device_impl *DevImpl) {
+          Devices.push_back(detail::createSyclObjFromImpl<device>(DevImpl));
+        });
   }
 
   return Devices;

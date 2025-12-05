@@ -28,20 +28,11 @@ std::vector<platform> platform::get_platforms() {
 }
 
 std::vector<device> platform::get_devices(info::device_type DeviceType) const {
-  // Early exit if host device is requested
-  if (DeviceType == info::device_type::host)
-    return {};
-
-  // handle automatic!
   std::vector<device> Devices;
-  const auto& DeviceImpls = getImpl().getRootDevices();
-
-  bool KeepAll = DeviceType == info::device_type::all;
-  for (auto& Impl : DeviceImpls)
-  {
-    if (KeepAll || DeviceType == Impl->getDeviceType())
-      Devices.push_back(detail::createSyclObjFromImpl<device>(Impl.get()));
-  }
+  getImpl().iterateDevices(
+      DeviceType, [&Devices](detail::device_impl *DevImpl) {
+        Devices.push_back(detail::createSyclObjFromImpl<device>(DevImpl));
+      });
 
   return Devices;
 }

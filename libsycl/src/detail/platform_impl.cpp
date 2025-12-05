@@ -86,5 +86,22 @@ bool platform_impl::has(aspect Aspect) const {
       [&Aspect](const DeviceImplUPtr &Device) { return Device->has(Aspect); });
 }
 
+void platform_impl::iterateDevices(
+    info::device_type DeviceType,
+    std::function<void(device_impl *)> callback) const {
+  // Early exit if host device is requested
+  if (DeviceType == info::device_type::host)
+    return;
+
+  // handle automatic!
+  const auto &DeviceImpls = getRootDevices();
+
+  bool KeepAll = DeviceType == info::device_type::all;
+  for (auto &Impl : DeviceImpls) {
+    if (KeepAll || DeviceType == Impl->getDeviceType())
+      callback(Impl.get());
+  }
+}
+
 } // namespace detail
 _LIBSYCL_END_NAMESPACE_SYCL

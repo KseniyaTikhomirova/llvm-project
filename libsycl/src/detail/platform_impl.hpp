@@ -18,6 +18,7 @@
 
 #include <OffloadAPI.h>
 
+#include <functional>
 #include <memory>
 #include <string>
 #include <type_traits>
@@ -127,6 +128,9 @@ public:
   }
 
   const std::vector<DeviceImplUPtr> &getRootDevices() const;
+
+  void iterateDevices(info::device_type DeviceType,
+                      std::function<void(device_impl *)> callback) const;
 
 private:
 
