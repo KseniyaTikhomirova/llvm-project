@@ -67,6 +67,9 @@ struct vendor : detail::info_desc_tag<vendor, sycl::device> {
 struct driver_version : detail::info_desc_tag<driver_version, sycl::device> {
   using return_type = std::string;
 };
+struct platform : detail::info_desc_tag<platform, sycl::device> {
+  using return_type = sycl::platform;
+};
 
 } // namespace device
 } // namespace info

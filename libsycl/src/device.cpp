@@ -84,6 +84,14 @@ detail::is_device_info_desc_t<Param> device::get_info() const {
   return getImpl().get_info<Param>();
 }
 
+template <>
+_LIBSYCL_EXPORT detail::is_device_info_desc_t<info::device::platform>
+device::get_info<info::device::platform>() const {
+  static_assert(
+      std::is_same_v<info::device::platform::return_type, sycl::platform>);
+  return get_platform();
+}
+
 #define _LIBSYCL_EXPORT_GET_INFO(Desc)                                         \
   template _LIBSYCL_EXPORT detail::is_device_info_desc_t<info::device::Desc>   \
   device::get_info<info::device::Desc>() const;

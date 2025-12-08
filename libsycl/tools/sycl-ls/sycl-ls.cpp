@@ -56,6 +56,26 @@ static void printDeviceInfo(const device &Device, bool Verbose,
   }
 }
 
+static void
+printSelectorChoice(const detail::DeviceSelectorInvocableType &Selector,
+                    const std::string &Prepend) {
+  try {
+    const auto &Device = device(Selector);
+    std::string DeviceTypeName = getDeviceTypeName(Device);
+    auto Platform = Device.get_info<info::device::platform>();
+    auto PlatformName = Platform.get_info<info::platform::name>();
+    printDeviceInfo(Device, false /*Verbose*/,
+                    Prepend + DeviceTypeName + ", " + PlatformName);
+  } catch (const sycl::exception &Exception) {
+    std::string What = Exception.what();
+    constexpr size_t MaxLength = 50;
+    // Truncate long string so it can fit in one-line
+    if (What.length() > MaxLength)
+      What = What.substr(0, MaxLength) + "...";
+    std::cout << Prepend << What << std::endl;
+  }
+}
+
 int main(int argc, char **argv) {
   llvm::cl::opt<bool> Verbose(
       "verbose",
@@ -110,6 +130,12 @@ int main(int argc, char **argv) {
     } else {
       return EXIT_SUCCESS;
     }
+
+    // Print built-in device selectors choice
+    printSelectorChoice(default_selector_v, "default_selector()      : ");
+    printSelectorChoice(accelerator_selector_v, "accelerator_selector()  : ");
+    printSelectorChoice(cpu_selector_v, "cpu_selector()          : ");
+    printSelectorChoice(gpu_selector_v, "gpu_selector()          : ");
   } catch (sycl::exception &e) {
     std::cerr << "SYCL Exception encountered: " << e.what() << std::endl
               << std::endl;

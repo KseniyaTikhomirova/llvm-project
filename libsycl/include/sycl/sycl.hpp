@@ -15,6 +15,7 @@
 #define _LIBSYCL_SYCL_HPP
 
 #include <sycl/__impl/device.hpp>
+#include <sycl/__impl/device_selector.hpp>
 #include <sycl/__impl/exception.hpp>
 #include <sycl/__impl/platform.hpp>
 
