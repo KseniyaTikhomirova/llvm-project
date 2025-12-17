@@ -34,6 +34,18 @@ class device_impl;
 // SYCL 2020 4.6.4. Device class
 class _LIBSYCL_EXPORT device {
 public:
+  device(const device &rhs) = default;
+
+  device(device &&rhs) = default;
+
+  device &operator=(const device &rhs) = default;
+
+  device &operator=(device &&rhs) = default;
+
+  friend bool operator==(const device& lhs, const device& rhs) { return lhs.impl == rhs.impl; }
+
+  friend bool operator!=(const device& lhs, const device& rhs) { return !(lhs == rhs); }
+
   /// Constructs a SYCL device instance using the default device (device chosen
   /// by default device selector)
   device();

@@ -143,13 +143,13 @@ int main(int argc, char **argv) {
           printDeviceInfo(Device, true, "        ");
         }
       }
-    }
 
-    // Print built-in device selectors choice
-    printSelectorChoice(default_selector_v, "default_selector()      : ");
-    printSelectorChoice(accelerator_selector_v, "accelerator_selector()  : ");
-    printSelectorChoice(cpu_selector_v, "cpu_selector()          : ");
-    printSelectorChoice(gpu_selector_v, "gpu_selector()          : ");
+      // Print built-in device selectors choice
+      printSelectorChoice(default_selector_v, "default_selector()      : ");
+      printSelectorChoice(accelerator_selector_v, "accelerator_selector()  : ");
+      printSelectorChoice(cpu_selector_v, "cpu_selector()          : ");
+      printSelectorChoice(gpu_selector_v, "gpu_selector()          : ");
+    }
   } catch (sycl::exception &e) {
     std::cerr << "SYCL Exception encountered: " << e.what() << std::endl
               << std::endl;
