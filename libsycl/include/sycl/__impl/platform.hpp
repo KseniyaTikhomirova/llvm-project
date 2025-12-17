@@ -44,9 +44,9 @@ public:
 
   platform &operator=(platform &&rhs) = default;
 
-  bool operator==(const platform &rhs) const { return &impl == &rhs.impl; }
+  friend bool operator==(const platform& lhs, const platform& rhs) { return lhs.impl == rhs.impl; }
 
-  bool operator!=(const platform &rhs) const { return !(*this == rhs); }
+  friend bool operator!=(const platform& lhs, const platform& rhs) { return !(lhs == rhs); }
 
   /// Returns the backend associated with this platform.
   ///
