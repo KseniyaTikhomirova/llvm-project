@@ -94,12 +94,24 @@ void PlatformImpl::iterateDevices(
   // Early exit if host device is requested
   if (DeviceType == info::device_type::host)
     return;
+  if (DeviceType == info::device_type::custom)
+    return;
+  if (DeviceType == info::device_type::accelerator)
+    return;
 
-  // handle automatic!
   const auto &DeviceImpls = getRootDevices();
+
+  // TODO: need an way to get default device from liboffload
+  // as temporal solution just return the first device for DeviceType ==
+  // automatic
 
   bool KeepAll = DeviceType == info::device_type::all;
   for (auto &Impl : DeviceImpls) {
+    if (DeviceType == info::device_type::automatic) {
+      callback(Impl.get());
+      return;
+    }
+
     if (KeepAll || DeviceType == Impl->getDeviceType())
       callback(Impl.get());
   }

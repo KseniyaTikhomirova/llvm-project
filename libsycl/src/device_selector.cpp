@@ -114,31 +114,8 @@ SelectDevice(const DeviceSelectorInvocableType &DeviceSelector) {
     return *ChosenDevice;
   }
 
-  auto Selector = DeviceSelector.target<int (*)(const sycl::device &)>();
-  assert(Selector &&
-         "Provided device selector violates SYCL 2020 requirements: must be "
-         "Callable, taking a parameter of type const device & and returning a "
-         "value that is implicitly convertible to int.");
-
-#define DEFAULT_MESSAGE "No device of requested type is available"
-  constexpr const char DefaultMessage[] = DEFAULT_MESSAGE;
-  constexpr const char CpuMessage[] =
-      DEFAULT_MESSAGE ": 'info::device_type::cpu' ";
-  constexpr const char GpuMessage[] =
-      DEFAULT_MESSAGE ": 'info::device_type::gpu' ";
-  constexpr const char AccMessage[] =
-      DEFAULT_MESSAGE ": 'info::device_type::accelerator' ";
-#undef DEFAULT_MESSAGE
-  std::error_code Errc = make_error_code(errc::runtime);
-
-  if (*Selector == gpu_selector_v)
-    throw exception(Errc, GpuMessage);
-  else if (*Selector == cpu_selector_v)
-    throw exception(Errc, CpuMessage);
-  else if (*Selector == accelerator_selector_v)
-    throw exception(Errc, AccMessage);
-
-  throw exception(Errc, DefaultMessage);
+  throw exception(make_error_code(errc::runtime),
+                  "No device of requested type is available");
 }
 
 } // namespace detail
