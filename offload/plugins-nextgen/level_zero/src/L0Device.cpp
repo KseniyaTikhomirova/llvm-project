@@ -16,6 +16,7 @@
 #include "L0Plugin.h"
 #include "L0Program.h"
 #include "L0Trace.h"
+#include "PluginInterface.h"
 
 namespace llvm::omp::target::plugin {
 
@@ -629,6 +630,8 @@ Expected<InfoTreeNode> L0DeviceTy::obtainInfoImpl() {
            DeviceInfo::MEMORY_CLOCK_RATE);
   Info.add("Memory Address Size", uint64_t{64u}, "bits",
            DeviceInfo::ADDRESS_BITS);
+  Info.add("Cooperative launch support", true, "",
+           DeviceInfo::COOPERATIVE_LAUNCH_SUPPORT);
   return Info;
 }
 
