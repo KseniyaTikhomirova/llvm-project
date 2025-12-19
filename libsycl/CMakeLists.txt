@@ -136,6 +136,7 @@ add_subdirectory(src)
 add_subdirectory(tools)
 
 if(LLVM_INCLUDE_TESTS)
+  add_subdirectory(test)
   add_subdirectory(test_e2e)
 endif()
 
@@ -144,3 +145,6 @@ add_custom_target(libsycl-toolchain ALL
           sycl-ls
   COMMENT "Building SYCL compiler toolchain..."
 )
+
+add_custom_target(check-sycl-all)
+add_dependencies(check-sycl-all check-sycl check-sycl-e2e)
