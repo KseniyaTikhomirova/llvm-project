@@ -6,8 +6,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include <sycl/__impl/device.hpp>
-
 #include <detail/device_impl.hpp>
 #include <detail/platform_impl.hpp>
 

@@ -121,9 +121,12 @@ public:
   void iterateDevices(info::device_type DeviceType,
                       std::function<void(device_impl *)> callback) const;
 
-private:
+  /// Returns all root devices for platform
+  ///
+  /// \return reference to collection of root devices
   const std::vector<DeviceImplUPtr> &getRootDevices() const;
 
+private:
   ol_platform_handle_t MOffloadPlatform{};
   size_t MOffloadPlatformIndex{};
   ol_platform_backend_t MOffloadBackend{OL_PLATFORM_BACKEND_UNKNOWN};
