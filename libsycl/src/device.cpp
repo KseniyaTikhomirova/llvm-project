@@ -13,8 +13,6 @@
 
 _LIBSYCL_BEGIN_NAMESPACE_SYCL
 
-device::device() : device(default_selector_v) {}
-
 bool device::is_cpu() const { return impl->is_cpu(); }
 
 bool device::is_gpu() const { return impl->is_gpu(); }
