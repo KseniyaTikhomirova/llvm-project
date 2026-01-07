@@ -5,7 +5,6 @@
 
 #include <sycl.hpp>
 
-#include <unordered_set>
 #include <iostream>
 #include <algorithm>
 
@@ -17,12 +16,10 @@ std::string BackendToString(sycl::backend Backend) {
     return "level_zero";
   case sycl::backend::cuda:
     return "cuda";
-  case sycl::backend::all:
-    return "all";
   case sycl::backend::hip:
     return "hip";
   default:
-    return "UNKNOWN";
+    return "unknown";
   }
 }
 
@@ -58,7 +55,7 @@ int Check(const T1 &LHS, const T2 &RHS, std::string TestName) {
 }
 
 int CheckDeviceType(const sycl::platform &P, sycl::info::device_type DevType,
-                    std::unordered_set<sycl::device> &AllDevices) {
+                    std::vector<sycl::device> &AllDevices) {
   assert(DevType != sycl::info::device_type::all);
   int Failures = 0;
 
@@ -74,8 +71,8 @@ int CheckDeviceType(const sycl::platform &P, sycl::info::device_type DevType,
                         "Number of devices for device_type::automatic query.");
       if (Devices.size())
         Failures +=
-            Check(AllDevices.count(Devices[0]), 1,
-                  "Device is in the set of all devices in the platform.");
+            Check(std::count(AllDevices.begin(), AllDevices.end(), Devices[0]),
+                  1, "Device is in the set of all devices in the platform.");
     }
     return Failures;
   }
@@ -85,21 +82,18 @@ int CheckDeviceType(const sycl::platform &P, sycl::info::device_type DevType,
   for (sycl::device Device : Devices)
     DevCount += (Device.get_info<sycl::info::device::device_type>() == DevType);
 
-  std::unordered_set<sycl::device> UniqueDevices{Devices.begin(),
-                                                 Devices.end()};
-  Check(Devices.size(), UniqueDevices.size(),
-        "Duplicate devices for " + DeviceTypeToString(DevType));
-
   Failures +=
       Check(Devices.size(), DevCount,
             "Unexpected number of devices for " + DeviceTypeToString(DevType));
 
-  Failures += Check(
-      std::all_of(UniqueDevices.begin(), UniqueDevices.end(),
-                  [&](const auto &Dev) { return AllDevices.count(Dev) == 1; }),
-      true,
-      "Not all devices for " + DeviceTypeToString(DevType) +
-          " appear in the list of all devices");
+  Failures += Check(std::all_of(Devices.begin(), Devices.end(),
+                                [&](const auto &Dev) {
+                                  return std::count(AllDevices.begin(),
+                                                    AllDevices.end(), Dev) == 1;
+                                }),
+                    true,
+                    "Not all devices for " + DeviceTypeToString(DevType) +
+                        " appear in the list of all devices");
 
   return Failures;
 }
@@ -111,21 +105,12 @@ int main() {
               << BackendToString(P.get_backend()) << std::endl;
 
     std::vector<sycl::device> Devices = P.get_devices();
-    std::unordered_set<sycl::device> UniqueDevices{Devices.begin(),
-                                                   Devices.end()};
-
-    if (Check(Devices.size(), UniqueDevices.size(),
-              "Duplicate devices for device_type::all")) {
-      ++Failures;
-      // Don't trust this platform, so we continue.
-      continue;
-    }
 
     for (sycl::info::device_type DevType :
          {sycl::info::device_type::cpu, sycl::info::device_type::gpu,
           sycl::info::device_type::accelerator, sycl::info::device_type::custom,
           sycl::info::device_type::automatic, sycl::info::device_type::host})
-      Failures += CheckDeviceType(P, DevType, UniqueDevices);
+      Failures += CheckDeviceType(P, DevType, Devices);
   }
   return Failures;
 }
