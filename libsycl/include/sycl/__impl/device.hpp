@@ -7,7 +7,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains the declaration of the SYCL device class, which
+/// This file contains the declaration of the SYCL 2020 device class, which
 /// represents a single SYCL device on which kernels can be executed.
 ///
 //===----------------------------------------------------------------------===//
@@ -28,10 +28,10 @@ _LIBSYCL_BEGIN_NAMESPACE_SYCL
 class platform;
 
 namespace detail {
-class device_impl;
+class DeviceImpl;
 } // namespace detail
 
-// SYCL 2020 4.6.4. Device class
+// SYCL 2020 4.6.4. Device class.
 class _LIBSYCL_EXPORT device {
 public:
   device(const device &rhs) = default;
@@ -56,12 +56,12 @@ public:
   /// takes a device and returns an int
   template <
       typename DeviceSelector,
-      // `device_impl` (used as a parameter in private ctor) is incomplete
+      // `DeviceImpl` (used as a parameter in private ctor) is incomplete
       // so would result in a error trying to instantiate
       // `EnableIfDeviceSelectorIsInvocable` below. Filter it out
       // before trying to do that.
-      typename = std::enable_if_t<
-          !std::is_same_v<DeviceSelector, detail::device_impl>>,
+      typename =
+          std::enable_if_t<!std::is_same_v<DeviceSelector, detail::DeviceImpl>>,
       typename = detail::EnableIfDeviceSelectorIsInvocable<DeviceSelector>>
   explicit device(const DeviceSelector &deviceSelector)
       : device(detail::SelectDevice(deviceSelector)) {}
@@ -106,6 +106,7 @@ public:
   get_backend_info() const;
 
   /// Queries which optional features this device supports (if any).
+  ///
   /// \return true if this device has the given aspect
   bool has(aspect asp) const;
 
@@ -163,8 +164,8 @@ public:
   get_devices(info::device_type deviceType = info::device_type::all);
 
 private:
-  device(detail::device_impl &Impl) : impl(&Impl) {}
-  detail::device_impl *impl;
+  device(detail::DeviceImpl &Impl) : impl(&Impl) {}
+  detail::DeviceImpl *impl;
 
   friend sycl::detail::ImplUtils;
 }; // class device

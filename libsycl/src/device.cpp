@@ -17,11 +17,11 @@ _LIBSYCL_BEGIN_NAMESPACE_SYCL
 
 device::device() : device(default_selector_v) {}
 
-bool device::is_cpu() const { return impl->is_cpu(); }
+bool device::is_cpu() const { return impl->isCPU(); }
 
-bool device::is_gpu() const { return impl->is_gpu(); }
+bool device::is_gpu() const { return impl->isGPU(); }
 
-bool device::is_accelerator() const { return impl->is_accelerator(); }
+bool device::is_accelerator() const { return impl->isAccelerator(); }
 
 platform device::get_platform() const {
   return detail::createSyclObjFromImpl<platform>(impl->getPlatformImpl());
@@ -36,7 +36,7 @@ std::vector<device> device::get_devices(info::device_type DeviceType) {
   for (auto &PlatformImpl : detail::PlatformImpl::getPlatforms()) {
     assert(platformImpl && "platformImpl can not be nullptr");
     PlatformImpl->iterateDevices(
-        DeviceType, [&Devices](detail::device_impl *DevImpl) {
+        DeviceType, [&Devices](detail::DeviceImpl *DevImpl) {
           assert(DevImpl && "Device impl can't be nullptr");
           Devices.push_back(detail::createSyclObjFromImpl<device>(*DevImpl));
         });
@@ -81,7 +81,7 @@ bool device::has(aspect Aspect) const { return impl->has(Aspect); }
 
 template <typename Param>
 detail::is_device_info_desc_t<Param> device::get_info() const {
-  return impl->get_info<Param>();
+  return impl->getInfo<Param>();
 }
 
 template <>

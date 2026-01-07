@@ -28,10 +28,10 @@ _LIBSYCL_BEGIN_NAMESPACE_SYCL
 
 namespace detail {
 
-class device_impl;
+class DeviceImpl;
 
 using PlatformImplUPtr = std::unique_ptr<PlatformImpl>;
-using DeviceImplUPtr = std::unique_ptr<device_impl>;
+using DeviceImplUPtr = std::unique_ptr<DeviceImpl>;
 
 class PlatformImpl {
   struct PrivateTag {
@@ -117,7 +117,7 @@ public:
   /// Calls "callback" with every root device of type == DeviceType associated
   /// with this platform
   void iterateDevices(info::device_type DeviceType,
-                      std::function<void(device_impl *)> callback) const;
+                      std::function<void(DeviceImpl *)> callback) const;
 
 private:
   const std::vector<DeviceImplUPtr> &getRootDevices() const;

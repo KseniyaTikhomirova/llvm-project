@@ -72,8 +72,8 @@ PlatformImpl::PlatformImpl(ol_platform_handle_t Platform, size_t PlatformIndex,
   MRootDevices.reserve(DevRange.size());
   std::for_each(DevRange.begin(), DevRange.end(),
                 [&](const ol_device_handle_t &Device) {
-                  MRootDevices.emplace_back(std::make_unique<device_impl>(
-                      Device, *this, device_impl::private_tag{}));
+                  MRootDevices.emplace_back(std::make_unique<DeviceImpl>(
+                      Device, *this, DeviceImpl::PrivateTag{}));
                 });
 }
 
@@ -90,7 +90,7 @@ bool PlatformImpl::has(aspect Aspect) const {
 
 void PlatformImpl::iterateDevices(
     info::device_type DeviceType,
-    std::function<void(device_impl *)> callback) const {
+    std::function<void(DeviceImpl *)> callback) const {
   // Early exit if host device is requested
   if (DeviceType == info::device_type::host)
     return;
@@ -104,7 +104,6 @@ void PlatformImpl::iterateDevices(
   // TODO: need an way to get default device from liboffload
   // as temporal solution just return the first device for DeviceType ==
   // automatic
-
   bool KeepAll = DeviceType == info::device_type::all;
   for (auto &Impl : DeviceImpls) {
     if (DeviceType == info::device_type::automatic) {

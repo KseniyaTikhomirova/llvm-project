@@ -13,14 +13,14 @@ _LIBSYCL_BEGIN_NAMESPACE_SYCL
 
 namespace detail {
 
-bool device_impl::has(aspect Aspect) const {
+bool DeviceImpl::has(aspect Aspect) const {
   switch (Aspect) {
   case (aspect::cpu):
-    return is_cpu();
+    return isCPU();
   case (aspect::gpu):
-    return is_gpu();
+    return isGPU();
   case (aspect::accelerator):
-    return is_accelerator();
+    return isAccelerator();
   case (aspect::custom):
     return false;
   case (aspect::emulated):
@@ -33,23 +33,23 @@ bool device_impl::has(aspect Aspect) const {
   }
 }
 
-info::device_type device_impl::getDeviceType() const {
-  return get_info<info::device::device_type>();
+info::device_type DeviceImpl::getDeviceType() const {
+  return getInfo<info::device::device_type>();
 }
 
-bool device_impl::is_cpu() const {
+bool DeviceImpl::isCPU() const {
   return getDeviceType() == info::device_type::cpu;
 }
 
-bool device_impl::is_gpu() const {
+bool DeviceImpl::isGPU() const {
   return getDeviceType() == info::device_type::gpu;
 }
 
-bool device_impl::is_accelerator() const {
+bool DeviceImpl::isAccelerator() const {
   return getDeviceType() == info::device_type::accelerator;
 }
 
-backend device_impl::getBackend() const { return MPlatform.getBackend(); }
+backend DeviceImpl::getBackend() const { return MPlatform.getBackend(); }
 
 } // namespace detail
 _LIBSYCL_END_NAMESPACE_SYCL

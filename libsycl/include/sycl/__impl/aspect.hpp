@@ -15,7 +15,7 @@
 
 _LIBSYCL_BEGIN_NAMESPACE_SYCL
 
-// SYCL 2020 4.6.4.5. Aspects
+// SYCL 2020 4.6.4.5. Aspects.
 enum class aspect : std::uint32_t {
   cpu,
   gpu,

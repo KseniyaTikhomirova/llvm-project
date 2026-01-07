@@ -28,7 +28,7 @@ std::vector<platform> platform::get_platforms() {
 
 std::vector<device> platform::get_devices(info::device_type DeviceType) const {
   std::vector<device> Devices;
-  impl->iterateDevices(DeviceType, [&Devices](detail::device_impl *DevImpl) {
+  impl->iterateDevices(DeviceType, [&Devices](detail::DeviceImpl *DevImpl) {
     assert(DevImpl && "Device impl can't be nullptr");
     Devices.push_back(detail::createSyclObjFromImpl<device>(*DevImpl));
   });

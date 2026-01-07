@@ -30,7 +30,7 @@ std::vector<PlatformImplUPtr> &getPlatformCache() {
   return PlatformCache;
 }
 
-void shutdown() {
+static void shutdown() {
   // No error reporting in shutdown
   std::ignore = olShutDown();
 }

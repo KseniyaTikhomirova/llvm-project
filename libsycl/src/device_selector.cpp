@@ -50,19 +50,19 @@ _LIBSYCL_EXPORT int default_selector_v(const device &dev) {
   return Score;
 }
 
-_LIBSYCL_EXPORT int gpu_selector_v(const device &dev) {
-  return dev.is_gpu() ? MatchedTypeDefaultScore + getDevicePreference(dev)
+_LIBSYCL_EXPORT int gpu_selector_v(const device &Dev) {
+  return Dev.is_gpu() ? MatchedTypeDefaultScore + getDevicePreference(Dev)
                       : RejectDeviceScore;
 }
 
-_LIBSYCL_EXPORT int cpu_selector_v(const device &dev) {
-  return dev.is_cpu() ? MatchedTypeDefaultScore + getDevicePreference(dev)
+_LIBSYCL_EXPORT int cpu_selector_v(const device &Dev) {
+  return Dev.is_cpu() ? MatchedTypeDefaultScore + getDevicePreference(Dev)
                       : RejectDeviceScore;
 }
 
-_LIBSYCL_EXPORT int accelerator_selector_v(const device &dev) {
-  return dev.is_accelerator()
-             ? MatchedTypeDefaultScore + getDevicePreference(dev)
+_LIBSYCL_EXPORT int accelerator_selector_v(const device &Dev) {
+  return Dev.is_accelerator()
+             ? MatchedTypeDefaultScore + getDevicePreference(Dev)
              : RejectDeviceScore;
 }
 
