@@ -33,7 +33,7 @@ template <typename T>
 using is_device_info_desc_t = typename is_info_desc<T, device>::return_type;
 } // namespace detail
 
-// SYCL 2020 A.3. Device information descriptors
+// SYCL 2020 A.3. Device information descriptors.
 namespace info {
 
 enum class partition_property : std::uint32_t {
@@ -54,7 +54,7 @@ enum class partition_affinity_domain : std::uint32_t {
 };
 
 namespace device {
-// SYCL 2020 4.6.4.4. Information descriptors
+// SYCL 2020 4.6.4.4. Information descriptors.
 
 struct device_type : detail::info_desc_tag<device_type, sycl::device> {
   using return_type = sycl::info::device_type;

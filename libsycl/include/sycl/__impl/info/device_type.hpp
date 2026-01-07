@@ -17,7 +17,7 @@ _LIBSYCL_BEGIN_NAMESPACE_SYCL
 
 namespace info {
 
-// SYCL 2020 4.6.4.7.1. Device type
+// SYCL 2020 4.6.4.7.1. Device type.
 enum class device_type : std::uint32_t {
   cpu = 0,
   gpu,

@@ -86,7 +86,18 @@ void callAndThrow(FunctionType &Function, ArgsT &&...Args) {
 /// \returns sycl::backend matching specified liboffload backend.
 backend convertBackend(ol_platform_backend_t Backend);
 
+/// Converts SYCL device type to liboffload type.
+///
+/// \param DeviceType SYCL device type.
+///
+/// \returns ol_device_type_t matching specified SYCL device type.
 ol_device_type_t convertDeviceTypeToOL(info::device_type DeviceType);
+
+/// Converts liboffload device type to SYCL type.
+///
+/// \param DeviceType liboffload device type.
+///
+/// \returns SYCL device type matching specified liboffload device type.
 info::device_type convertDeviceTypeToSYCL(ol_device_type_t DeviceType);
 
 /// Helper to map SYCL information descriptors to OL_<HANDLE>_INFO_<SMTH>.
