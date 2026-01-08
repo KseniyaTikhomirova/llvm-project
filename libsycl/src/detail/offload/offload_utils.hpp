@@ -27,9 +27,13 @@ inline std::string formatCodeString(ol_result_t Result) {
          std::string(stringifyErrorCode(Result->Code)) + ") " + Result->Details;
 }
 
+inline bool isSuccess(const ol_result_t &Result) {
+  return Result == OL_SUCCESS;
+}
+
 template <sycl::errc errc = sycl::errc::runtime>
 void checkAndThrow(ol_result_t Result) {
-  if (Result != OL_SUCCESS) {
+  if (!isSuccess(Result)) {
     throw sycl::exception(sycl::make_error_code(errc),
                           detail::formatCodeString(Result));
   }
@@ -55,6 +59,8 @@ backend convertBackend(ol_platform_backend_t Backend);
 
 ol_device_type_t convertDeviceTypeToOL(info::device_type DeviceType);
 info::device_type convertDeviceTypeToSYCL(ol_device_type_t DeviceType);
+
+ol_alloc_type_t convertUSMTypeToOL(usm::alloc USMType);
 
 // Helper to map SYCL information descriptors to OL_<HANDLE>_INFO_<SMTH>. To be
 // used like:
