@@ -12,6 +12,8 @@
 #include <sycl/__impl/detail/config.hpp>
 #include <sycl/__impl/queue.hpp>
 
+#include <detail/device_impl.hpp>
+
 #include <OffloadAPI.h>
 
 #include <memory>
@@ -19,7 +21,13 @@
 _LIBSYCL_BEGIN_NAMESPACE_SYCL
 namespace detail {
 
-class QueueImpl : public std::enable_shared_from_this<queue_impl> {
+class ContextImpl;
+
+class QueueImpl : public std::enable_shared_from_this<QueueImpl> {
+  struct PrivateTag {
+    explicit PrivateTag() = default;
+  };
+
 public:
   ~QueueImpl() = default;
 
@@ -35,20 +43,20 @@ public:
     return std::make_shared<QueueImpl>(std::forward<Ts>(args)..., PrivateTag{});
   }
 
-  backend getBackend() const noexcept { return MDevice->getBackend(); }
+  backend getBackend() const noexcept { return MDevice.getBackend(); }
 
   ContextImpl &getContext() const { return MContext; }
 
-  DeviceImpl &getDevice() const { return MDevice; }
+  device_impl &getDevice() const { return MDevice; }
 
   bool isInOrder() const { return MIsInorder; }
 
 private:
-  ol_queue_handle_t MOffloadQueue = {};
+  // ol_queue_handle_t MOffloadQueue = {};
   const bool MIsInorder;
   const async_handler MAsyncHandler;
   const property_list MPropList;
-  const DeviceImpl &MDevice;
+  const device_impl &MDevice;
   const ContextImpl &MContext;
 };
 

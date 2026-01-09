@@ -6,26 +6,31 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <sycl/__impl/queue.hpp>
+
+#include <detail/queue_impl.hpp>
+
 _LIBSYCL_BEGIN_NAMESPACE_SYCL
 
-explicit queue(const device &syclDevice, const async_handler &asyncHandler,
-               const property_list &propList) {
+explicit queue::queue(const device &syclDevice,
+                      const async_handler &asyncHandler,
+                      const property_list &propList) {
   impl = detail::QueueImpl::create(*detail::getSyclObjImpl(syclDevice),
                                    asyncHandler, PropList);
 }
 
-backend get_backend() const noexcept { return impl->getBackend(); }
+backend queue::get_backend() const noexcept { return impl->getBackend(); }
 
-context get_context() const {
+context queue::get_context() const {
   return detail::createSyclObjFromImpl<context>(impl->getContext());
 }
 
-device get_device() const {
+device queue::get_device() const {
   return detail::createSyclObjFromImpl<device>(impl->getDevice());
 }
 
-bool is_in_order() const { return impl->isInOrder(); }
+bool queue::is_in_order() const { return impl->isInOrder(); }
 
-template <typename Param> typename Param::return_type get_info() const;
+template <typename Param> typename Param::return_type queue::get_info() const;
 
 _LIBSYCL_END_NAMESPACE_SYCL

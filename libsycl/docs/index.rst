@@ -109,4 +109,5 @@ TODO for added SYCL classes
 
   * add aligned functions (blocked by liboffload support)
   * forward templated funcs to alignment methods (rewrite current impl)
+  * handle sub devices once they are implemented (blocked by liboffload support)
 

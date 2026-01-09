@@ -13,6 +13,7 @@
 #include <sycl/__impl/detail/config.hpp>
 #include <sycl/__impl/exception.hpp>
 #include <sycl/__impl/info/device_type.hpp>
+#include <sycl/__impl/usm_alloc_type.hpp>
 
 #include <OffloadAPI.h>
 

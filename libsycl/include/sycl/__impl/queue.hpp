@@ -19,9 +19,13 @@
 #include <sycl/__impl/detail/default_async_handler.hpp>
 #include <sycl/__impl/detail/obj_utils.hpp>
 
+#include <sycl/__impl/async_handler.hpp>
+#include <sycl/__impl/device.hpp>
+#include <sycl/__impl/property_list.hpp>
+
 _LIBSYCL_BEGIN_NAMESPACE_SYCL
 
-class async_handler;
+class context;
 
 namespace detail {
 class QueueImpl;
@@ -43,32 +47,32 @@ public:
   friend bool operator!=(const queue& lhs, const queue& rhs) { return !(lhs == rhs); }
 
   explicit queue(const property_list &propList = {})
-      : device(detail::SelectDevice(default_selector_v),
-               detail::defaultAsyncHandler, PropList) {}
+      : queue(detail::SelectDevice(default_selector_v),
+              detail::defaultAsyncHandler, propList) {}
 
   explicit queue(const async_handler &asyncHandler,
                  const property_list &propList = {})
-      : device(detail::SelectDevice(default_selector_v), asyncHandler,
-               PropList) {}
+      : queue(detail::SelectDevice(default_selector_v), asyncHandler,
+              propList) {}
 
-  template <typename DeviceSelector,
-            typename =
-                detail::EnableIfSYCL2020DeviceSelectorInvocable<DeviceSelector>>
+  template <
+      typename DeviceSelector,
+      typename = detail::EnableIfDeviceSelectorIsInvocable<DeviceSelector>>
   explicit queue(const DeviceSelector &deviceSelector,
                  const property_list &propList = {})
-      : device(detail::SelectDevice(deviceSelector),
-               detail::defaultAsyncHandler, PropList) {}
+      : queue(detail::SelectDevice(deviceSelector), detail::defaultAsyncHandler,
+              propList) {}
 
-  template <typename DeviceSelector,
-            typename =
-                detail::EnableIfSYCL2020DeviceSelectorInvocable<DeviceSelector>>
+  template <
+      typename DeviceSelector,
+      typename = detail::EnableIfDeviceSelectorIsInvocable<DeviceSelector>>
   explicit queue(const DeviceSelector &deviceSelector,
                  const async_handler &asyncHandler,
                  const property_list &propList = {})
-      : device(detail::SelectDevice(deviceSelector), asyncHandler, PropList) {}
+      : queue(detail::SelectDevice(deviceSelector), asyncHandler, propList) {}
 
   explicit queue(const device &syclDevice, const property_list &propList = {})
-      : device(syncDevice, detail::defaultAsyncHandler, propList) {}
+      : queue(syclDevice, detail::defaultAsyncHandler, propList) {}
 
   explicit queue(const device &syclDevice, const async_handler &asyncHandler,
                  const property_list &propList = {});
@@ -88,8 +92,8 @@ public:
   typename Param::return_type get_backend_info() const;
 
 private:
-  queue(const std::shared_ptr<QueueImpl>& Impl) : impl(Impl) {}
-  std::shared_ptr<QueueImpl> impl;
+  queue(const std::shared_ptr<detail::QueueImpl> &Impl) : impl(Impl) {}
+  std::shared_ptr<detail::QueueImpl> impl;
 
   friend sycl::detail::ImplUtils;
 }; // class queue

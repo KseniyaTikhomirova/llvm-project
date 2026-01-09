@@ -19,7 +19,7 @@
 
 #include <sycl/__impl/exception.hpp>
 
-#include <ostream>
+#include <iostream>
 
 _LIBSYCL_BEGIN_NAMESPACE_SYCL
 

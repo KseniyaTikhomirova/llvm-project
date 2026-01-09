@@ -48,7 +48,7 @@ public:
 
   /// Constructs a SYCL device instance using the default device (device chosen
   /// by default device selector)
-  device::device() : device(default_selector_v) {}
+  device() : device(default_selector_v) {}
 
   /// Constructs a SYCL device instance using the device
   /// identified by the device selector provided.
