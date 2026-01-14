@@ -31,7 +31,7 @@ namespace detail {
 class QueueImpl;
 } // namespace detail
 
-// SYCL 2020 4.6.5. Queue class
+// SYCL 2020 4.6.5. Queue class.
 class _LIBSYCL_EXPORT queue {
 public:
   queue(const queue &rhs) = default;
@@ -46,15 +46,29 @@ public:
 
   friend bool operator!=(const queue& lhs, const queue& rhs) { return !(lhs == rhs); }
 
+  /// Constructs a SYCL queue instance using the device returned by an instance
+  /// of default_selector.
+  ///
+  /// \param propList is a list of properties for queue construction.
   explicit queue(const property_list &propList = {})
       : queue(detail::SelectDevice(default_selector_v),
               detail::defaultAsyncHandler, propList) {}
 
+  /// Constructs a SYCL queue instance with an async_handler using the device
+  /// returned by an instance of default_selector.
+  ///
+  /// \param asyncHandler is a SYCL asynchronous exception handler.
+  /// \param propList is a list of properties for queue construction.
   explicit queue(const async_handler &asyncHandler,
                  const property_list &propList = {})
       : queue(detail::SelectDevice(default_selector_v), asyncHandler,
               propList) {}
 
+  /// Constructs a SYCL queue instance using the device identified by the
+  /// device selector provided.
+  /// \param deviceSelector is SYCL 2020 Device Selector, a simple callable that
+  /// takes a device and returns an int
+  /// \param propList is a list of properties for queue construction.
   template <
       typename DeviceSelector,
       typename = detail::EnableIfDeviceSelectorIsInvocable<DeviceSelector>>
@@ -63,6 +77,12 @@ public:
       : queue(detail::SelectDevice(deviceSelector), detail::defaultAsyncHandler,
               propList) {}
 
+  /// Constructs a SYCL queue instance using the device identified by the
+  /// device selector provided.
+  /// \param deviceSelector is SYCL 2020 Device Selector, a simple callable that
+  /// takes a device and returns an int
+  /// \param asyncHandler is a SYCL asynchronous exception handler.
+  /// \param propList is a list of properties for queue construction.
   template <
       typename DeviceSelector,
       typename = detail::EnableIfDeviceSelectorIsInvocable<DeviceSelector>>
@@ -71,23 +91,53 @@ public:
                  const property_list &propList = {})
       : queue(detail::SelectDevice(deviceSelector), asyncHandler, propList) {}
 
+  /// Constructs a SYCL queue instance using the device provided.
+  ///
+  /// \param syclDevice is an instance of SYCL device.
+  /// \param propList is a list of properties for queue construction.
   explicit queue(const device &syclDevice, const property_list &propList = {})
       : queue(syclDevice, detail::defaultAsyncHandler, propList) {}
 
+  /// Constructs a SYCL queue instance with an async_handler using the device
+  /// provided.
+  ///
+  /// \param syclDevice is an instance of SYCL device.
+  /// \param asyncHandler is a SYCL asynchronous exception handler.
+  /// \param propList is a list of properties for queue construction.
   explicit queue(const device &syclDevice, const async_handler &asyncHandler,
                  const property_list &propList = {});
 
+  /// Returns the SYCL backend that is associated with this queue.
+  ///
+  /// \return the backend associated with this queue.
   backend get_backend() const noexcept;
 
+  /// Returns context that is associated with this queue.
+  ///
+  /// \return an associated SYCL context.
   context get_context() const;
 
+  /// Returns device that is associated with this queue.
+  ///
+  /// \return SYCL device this queue was constructed with.
   device get_device() const;
 
+  /// Returns whether the queue is in order or out of order.
+  ///
+  /// Equivalent to has_property<property::queue::in_order>().
+  ///
+  /// \return true if queue is in order.
   bool is_in_order() const;
 
+  /// Queries SYCL queue for information.
+  ///
+  /// The return type depends on information being queried.
   template <typename Param>
   typename Param::return_type get_info() const;
 
+  /// Queries SYCL queue for SYCL backend-specific information.
+  ///
+  /// The return type depends on information being queried.
   template <typename Param>
   typename Param::return_type get_backend_info() const;
 

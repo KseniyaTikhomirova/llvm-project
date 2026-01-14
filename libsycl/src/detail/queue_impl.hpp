@@ -30,20 +30,41 @@ class QueueImpl : public std::enable_shared_from_this<QueueImpl> {
 public:
   ~QueueImpl() = default;
 
+  /// Constructs a SYCL queue from a device using an asyncHandler and
+  /// propList provided.
+  ///
+  /// \param deviceImpl is a SYCL device that is used to dispatch tasks
+  /// submitted to the queue.
+  /// \param asyncHandler is a SYCL asynchronous exception handler.
+  /// \param propList is a list of properties to use for queue construction.
   explicit QueueImpl(device_impl &deviceImpl, const async_handler &asyncHandler,
                      const property_list &propList, PrivateTag);
 
+  /// Constructs a QueueImpl with a provided arguments. Variadic helper.
+  /// Restrics ways of QueueImpl creation.
   template <typename... Ts>
   static std::shared_ptr<QueueImpl> create(Ts &&...args) {
     return std::make_shared<QueueImpl>(std::forward<Ts>(args)..., PrivateTag{});
   }
 
+  /// Returns backend this queue is associated with.
+  ///
+  /// \return SYCL backend.
   backend getBackend() const noexcept;
 
+  /// Returns context this queue is associated with.
+  ///
+  /// \return context implementation object.
   ContextImpl &getContext() { return MContext; }
 
+  /// Returns device this queue is associated with.
+  ///
+  /// \return device implementation object.
   device_impl &getDevice() { return MDevice; }
 
+  /// Returns whether the queue is in order or out of order.
+  ///
+  /// \return true if queue is in order.
   bool isInOrder() const { return MIsInorder; }
 
 private:

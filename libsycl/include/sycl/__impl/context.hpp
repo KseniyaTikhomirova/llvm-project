@@ -56,15 +56,30 @@ public:
     return !(lhs == rhs);
   }
 
+  /// Returns the backend associated with this context.
+  ///
+  /// \return the backend associated with this context.
   backend get_backend() const noexcept;
 
+  /// Gets platform associated with this SYCL context.
+  ///
+  /// \return a valid instance of SYCL platform.
   platform get_platform() const;
 
+  /// Gets devices associated with this SYCL context.
+  ///
+  /// \return a vector of valid SYCL device instances.
   std::vector<device> get_devices() const;
 
+  /// Queries this SYCL context for information.
+  ///
+  /// The return type depends on information being queried.
   template <typename Param>
   detail::is_context_info_desc_t<Param> get_info() const;
 
+  /// Queries this SYCL context for SYCL backend-specific information.
+  ///
+  /// The return type depends on information being queried.
   template <typename Param>
   typename Param::return_type get_backend_info() const;
 

@@ -22,29 +22,50 @@ namespace detail {
 class platform_impl;
 class device_impl;
 
+/// Context dummy (w/o liboffload handle) that represents all devices
+/// in platform.
+///
+/// Presence of context object is essential for many APIs. This dummy is a way
+/// to support them in case of absence of context support in liboffload. For
+/// backends where context exists and participates in operations liboffload
+/// plugins create and use default context that represents all devices in that
+/// platform. Duplicating this logic here.
 class ContextImpl : public std::enable_shared_from_this<ContextImpl> {
   struct Private {
     explicit Private() = default;
   };
 
 public:
+  /// Constructs a ContextImpl using a platform.
+  ///
+  /// Newly created instance represents all devices in platform.
+  ///
+  /// \param Platform is a platform to associate this context with.
   ContextImpl(platform_impl &Platform, Private) : MPlatform(Platform) {}
 
+  /// Constructs a ContextImpl with a provided arguments. Variadic helper.
+  /// Restrics ways of ContextImpl creation.
   template <typename... Ts>
   static std::shared_ptr<ContextImpl> create(Ts &&...args) {
     return std::make_shared<ContextImpl>(std::forward<Ts>(args)..., Private{});
   }
 
+  /// Returns associated platform
+  ///
+  /// \return platform implementation object this context is associated with.
   platform_impl &getPlatformImpl() const { return MPlatform; }
 
+  /// Calls "callback" with every device associated
+  /// with this context.
   void iterateDevices(const std::function<void(device_impl *)> &callback) const;
 
+  /// Returns backend of the platform this context is associated with.
+  ///
+  /// \return SYCL backend.
   backend getBackend() const;
 
 private:
   platform_impl &MPlatform;
-
-  // ol_device_handle_t MContext{};
 };
 
 } // namespace detail

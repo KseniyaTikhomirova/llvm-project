@@ -22,6 +22,7 @@ _LIBSYCL_BEGIN_NAMESPACE_SYCL
 
 class exception_list;
 
+// SYCL 2020 4.13.2. Exception class interface.
 using async_handler = std::function<void(sycl::exception_list)>;
 
 _LIBSYCL_END_NAMESPACE_SYCL

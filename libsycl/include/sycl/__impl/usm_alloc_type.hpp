@@ -16,6 +16,7 @@ _LIBSYCL_BEGIN_NAMESPACE_SYCL
 
 namespace usm {
 
+// SYCL 2020 4.8.2. Kinds of unified shared memory.
 enum class alloc : char { host = 0, device = 1, shared = 2, unknown = 3 };
 
 }

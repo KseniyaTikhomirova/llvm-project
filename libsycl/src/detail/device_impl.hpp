@@ -29,9 +29,6 @@ class device_impl {
 public:
   /// Constructs a SYCL device instance using the provided
   /// offload device instance.
-  //
-  // Must be called through `platform_impl::get_devices` method only.
-  // `private_tag` ensures that is true.
   explicit device_impl(ol_device_handle_t Device, platform_impl &Platform,
                        private_tag)
       : MOffloadDevice(Device), MPlatform(Platform) {}

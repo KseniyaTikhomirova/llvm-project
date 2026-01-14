@@ -19,7 +19,9 @@
 
 _LIBSYCL_BEGIN_NAMESPACE_SYCL
 
-// Just a placeholder for Phase 0.
+/// Collection of properties for SYCL objects. Supported properties are defined
+/// by exact object the property_list passed to.
+// Just a placeholder for initial stage.
 class property_list {
 public:
   template <typename... Properties>

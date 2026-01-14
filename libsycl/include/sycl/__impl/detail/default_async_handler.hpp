@@ -25,7 +25,13 @@ _LIBSYCL_BEGIN_NAMESPACE_SYCL
 
 namespace detail {
 
-// ktikhomi: TODO implement exclude from ABI stuff
+// SYCL 2020 4.13.1.2. Behavior without an async handler.
+// If an asynchronous error occurs in a queue or context that has no
+// user-supplied asynchronous error handler object async_handler, then an
+// implementation-defined default async_handler is called to handle the error in
+// the same situations that a user-supplied async_handler would be. The default
+// async_handler must in some way report all errors passed to it, when possible,
+// and must then invoke std::terminate or equivalent.
 inline void defaultAsyncHandler(exception_list ExceptionList) {
   std::cerr
       << "Implementation-defined default async_handler caught exceptions:";

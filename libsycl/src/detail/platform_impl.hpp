@@ -129,12 +129,6 @@ public:
   /// Returns context dummy (w/o liboffload handle) that represents all devices
   /// in platform.
   ///
-  /// Presence of context object is essential for many APIs. This dummy is a way
-  /// to support them in case of limited context support in liboffload. For
-  /// backends where context exists and participates in operations liboffload
-  /// plugins create and use default context that represents all devices in that
-  /// platform. Duplicating this logic here.
-  ///
   /// \return context implementation object
   ContextImpl &getDefaultContext();
 
