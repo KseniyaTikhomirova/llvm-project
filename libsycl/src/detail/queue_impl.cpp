@@ -6,9 +6,20 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <detail/device_impl.hpp>
 #include <detail/queue_impl.hpp>
 
 _LIBSYCL_BEGIN_NAMESPACE_SYCL
 
-namespace detail {} // namespace detail
+namespace detail {
+
+QueueImpl::QueueImpl(device_impl &deviceImpl, const async_handler &asyncHandler,
+                     const property_list &propList, PrivateTag)
+    : MIsInorder(false), MAsyncHandler(asyncHandler), MPropList(propList),
+      MDevice(deviceImpl),
+      MContext(MDevice.getPlatformImpl().getDefaultContext()) {}
+
+backend QueueImpl::getBackend() const noexcept { return MDevice.getBackend(); }
+
+} // namespace detail
 _LIBSYCL_END_NAMESPACE_SYCL

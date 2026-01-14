@@ -49,7 +49,9 @@ bool device_impl::is_accelerator() const {
   return getDeviceType() == info::device_type::accelerator;
 }
 
-backend device_impl::getBackend() const { return MPlatform.getBackend(); }
+backend device_impl::getBackend() const noexcept {
+  return MPlatform.getBackend();
+}
 
 } // namespace detail
 _LIBSYCL_END_NAMESPACE_SYCL

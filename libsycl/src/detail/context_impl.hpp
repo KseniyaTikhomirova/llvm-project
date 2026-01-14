@@ -22,7 +22,7 @@ namespace detail {
 class platform_impl;
 class device_impl;
 
-class ContextImpl : std::enable_shared_from_this<ContextImpl> {
+class ContextImpl : public std::enable_shared_from_this<ContextImpl> {
   struct Private {
     explicit Private() = default;
   };

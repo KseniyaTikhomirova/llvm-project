@@ -8,9 +8,12 @@
 
 #include <sycl/__impl/usm_functions.hpp>
 
+#include <detail/device_impl.hpp>
 #include <detail/offload/offload_utils.hpp>
 
 #include <OffloadAPI.h>
+
+#include <algorithm>
 
 _LIBSYCL_BEGIN_NAMESPACE_SYCL
 
@@ -34,8 +37,9 @@ void *malloc_host(std::size_t numBytes, const context &syclContext,
                   const property_list &propList) {
   auto ContextDevices = syclContext.get_devices();
   assert(!ContextDevices.empty() && "Context can't be created without device");
-  if (std::none_of(ContextDevices.begin(), ContextDevices.end(), [](device Dev) {
-    return Dev.has(aspect::usm_host_allocations); } );
+  if (std::none_of(
+          ContextDevices.begin(), ContextDevices.end(),
+          [](device Dev) { return Dev.has(aspect::usm_host_allocations); }))
     throw sycl::exception(sycl::errc::feature_not_supported,
                           "All devices of context do not support host USM allocations.");
   return malloc(numBytes, ContextDevices[0], syclContext, usm::alloc::host, propList);
@@ -72,38 +76,38 @@ static aspect getAspectByAllocationKind(usm::alloc kind) {
     return aspect::usm_shared_allocations;
   default:
     assert(false &&
-           "Must be unreachable, usm::unknown allocation can't be requested")
-        // usm::alloc::unknown can be returned to user from get_pointer_type but
-        // it can't be converted to a valid backend type and there is no need to
-        // do that.
-        throw exception(sycl::make_error_code(sycl::errc::runtime),
-                        "USM type is not supported");
+           "Must be unreachable, usm::unknown allocation can't be requested");
+    // usm::alloc::unknown can be returned to user from get_pointer_type but
+    // it can't be converted to a valid backend type and there is no need to
+    // do that.
+    throw exception(sycl::make_error_code(sycl::errc::runtime),
+                    "USM type is not supported");
   }
 }
 
 void *malloc(std::size_t numBytes, const device &syclDevice,
              const context &syclContext, usm::alloc kind,
-             const property_list &propList);
-{
+             const property_list &propList) {
   auto ContextDevices = syclContext.get_devices();
   assert(!ContextDevices.empty() && "Context can't be created without device");
-  if (std::none_of(ContextDevices.begin(), ContextDevices.end(), [](device Dev) {
-    return Dev == syclDevice; } );
+  if (std::none_of(ContextDevices.begin(), ContextDevices.end(),
+                   [&syclDevice](device Dev) { return Dev == syclDevice; }))
     throw exception(make_error_code(errc::invalid),
                       "Specified device is not contained by specified context.");
-  if (!syclDevice.has(getAspectByAllocKind(kind)))
-     throw sycl::exception(sycl::errc::feature_not_supported,
-                          "Device doesn't support requested kind of USM allocation");
+  if (!syclDevice.has(getAspectByAllocationKind(kind)))
+    throw sycl::exception(
+        sycl::errc::feature_not_supported,
+        "Device doesn't support requested kind of USM allocation");
 
   if (!numBytes)
     return nullptr;
 
   void *Ptr{};
-  auto Result =
-      callNoCheck(olMemAlloc, getSyclObjImpl(syclDevice)->getHandleRef(),
-                  convertUSMTypeToOL(kind), numBytes, &Ptr);
+  auto Result = detail::call_nocheck(
+      olMemAlloc, detail::getSyclObjImpl(syclDevice)->getOLHandle(),
+      detail::convertUSMTypeToOL(kind), numBytes, &Ptr);
   assert(!!Result != !!Ptr && "Successful USM allocation can't return nullptr");
-  return isSuccess(result) ? Ptr : nullptr;
+  return detail::isSuccess(Result) ? Ptr : nullptr;
 }
 
 void *malloc(std::size_t numBytes, const queue &syclQueue, usm::alloc kind,
@@ -116,7 +120,7 @@ void *malloc(std::size_t numBytes, const queue &syclQueue, usm::alloc kind,
 
 void free(void *ptr, const context &ctxt) {
   std::ignore = ctxt;
-  callAndThrow(olMemFree, ptr);
+  detail::call_and_throw(olMemFree, ptr);
 }
 
 void free(void *ptr, const queue &q) { return free(ptr, q.get_context()); }
