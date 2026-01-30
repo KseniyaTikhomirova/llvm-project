@@ -15,12 +15,15 @@
 #ifndef _LIBSYCL___IMPL_QUEUE_HPP
 #define _LIBSYCL___IMPL_QUEUE_HPP
 
+#include <sycl/__impl/detail/arg_wrapper.hpp>
 #include <sycl/__impl/detail/config.hpp>
 #include <sycl/__impl/detail/default_async_handler.hpp>
 #include <sycl/__impl/detail/obj_utils.hpp>
 
 #include <sycl/__impl/async_handler.hpp>
 #include <sycl/__impl/device.hpp>
+#include <sycl/__impl/event.hpp>
+#include <sycl/__impl/index_space_classes.hpp>
 #include <sycl/__impl/property_list.hpp>
 
 _LIBSYCL_BEGIN_NAMESPACE_SYCL
@@ -29,6 +32,20 @@ class context;
 
 namespace detail {
 class QueueImpl;
+
+
+template <typename, typename T> struct checkFuncSignature {
+  static_assert(false,
+                "Second template parameter is required to be of function type");
+};
+
+template <typename F, typename RetT, typename... Args>
+struct checkFuncSignature<F, RetT(Args...)> {
+public:
+  static constexpr bool value = std::is_invocable_r<void, F, Args...>::value;
+};
+}
+
 } // namespace detail
 
 // SYCL 2020 4.6.5. Queue class.
@@ -144,9 +161,166 @@ public:
   template <typename Param>
   typename Param::return_type get_backend_info() const;
 
+  template <typename KernelName, typename KernelType>
+  event single_task(const KernelType& kernelFunc)
+  {
+    return single_task<KernelName, KernelType>({}, kernelFunc);
+  }
+
+  template <typename KernelName, typename KernelType>
+  event single_task(event depEvent, const KernelType &kernelFunc) {
+    return single_task<KernelName, KernelType>({depEvent}, kernelFunc);
+  }
+
+  template <typename KernelName, typename KernelType>
+  event single_task(const std::vector<event> &depEvents,
+                    const KernelType &kernelFunc) {
+    static_assert(
+        (detail::checkFuncSignature<std::remove_reference_t<KernelType>,
+                                    void()>::value),
+        "sycl::queue::single_task() requires a kernel instead of command "
+        "group. ");
+
+    setKernelParameters(depEvents);
+    kernel_single_task<KernelName, KernelType>(KernelFunc);
+    return getLastEvent();
+  }
+
+  //   template <typename KernelName, int Dims, typename... Rest>
+  //   event parallel_for(range<Dims> numWorkItems, Rest &&...rest) {
+  //     return parallel_for(numWorkItems, {}, rest...);
+  //   }
+
+  //   template <typename KernelName, int Dims, typename... Rest>
+  //   event parallel_for(range<Dims> numWorkItems, event depEvent, Rest
+  //   &&...rest) {
+  //     return parallel_for(numWorkItems, {depEvent}, rest...);
+  //   }
+
+  //   template <typename RetType, typename Func, typename Arg>
+  //   static Arg member_ptr_helper(RetType (Func::*)(Arg) const);
+
+  //   // Non-const version of the above template to match functors whose
+  //   // 'operator()' is declared w/o the 'const' qualifier.
+  //   template <typename RetType, typename Func, typename Arg>
+  //   static Arg member_ptr_helper(RetType (Func::*)(Arg));
+
+  //   template <typename F, typename SuggestedArgType>
+  //   decltype(member_ptr_helper(&F::operator())) argument_helper(int);
+
+  //   template <typename F, typename SuggestedArgType>
+  //   SuggestedArgType argument_helper(...);
+
+  //   template <typename F, typename SuggestedArgType>
+  //   using lambda_arg_type = decltype(argument_helper<F,
+  //   SuggestedArgType>(0));
+
+  //   template <typename KernelName, int Dims, typename... Rest>
+  //   event parallel_for(range<Dims> numWorkItems,
+  //                      const std::vector<event> &depEvents, Rest &&...rest) {
+  //     if constexpr (sizeof...(Rest) != 1)
+  //       throw sycl::exception(unsupported, "Reductions are not supported.");
+
+  // #ifndef __SYCL_DEVICE_ONLY__
+  //     detail::checkValueRange<Dims>(Range);
+  // #endif
+  //     setKernelParameters(depEvents, numWorkItems);
+
+  //     using LambdaArgType = sycl::detail::lambda_arg_type<Rest, item<Dims>>;
+  //     // If 1D kernel argument is an integral type, convert it to
+  //     sycl::item<1>
+  //     // If user type is convertible from sycl::item/sycl::nd_item, use
+  //     // sycl::item/sycl::nd_item to transport item information
+  //     using TransformedArgType = std::conditional_t<
+  //         std::is_integral<LambdaArgType>::value && Dims == 1, item<Dims>,
+  //         typename detail::TransformUserItemType<Dims, LambdaArgType>::type>;
+
+  //     kernel_parallel_for<KernelName, TransformedArgType, ... Rest>(rest...);
+  //     return getLastEvent();
+  //   }
+
+private:
+// #ifdef SYCL_LANGUAGE_VERSION
+#define _LIBSYCL_ENTRY_POINT_ATTR__(KernelName)                                \
+  [[clang::sycl_kernel_entry_point(KernelName)]]
+  // #else
+  // #define _LIBSYCL_ENTRY_POINT_ATTR__(KernelName)
+  // #endif // SYCL_LANGUAGE_VERSION
+
+  template <typename KernelName, typename KernelType, typename... Props>
+  // check if ifdef here can be removed
+  // check if it is even needed
+#ifdef __SYCL_DEVICE_ONLY__
+  [[__sycl_detail__::add_ir_attributes_function("sycl-single-task")]]
+#endif
+
+  _LIBSYCL_ENTRY_POINT_ATTR__ void
+  kernel_single_task(const KernelType &KernelFunc) {
+    KernelFunc();
+  }
+
+  // template <int N>
+  // static inline constexpr bool is_valid_dimensions = (N > 0) && (N < 4);
+
+  // template <typename T> T *declptr() { return static_cast<T *>(nullptr); }
+  // template <int Dims> static const id<Dims> getElement(id<Dims> *) {
+  //   static_assert(is_valid_dimensions<Dims>, "invalid dimensions");
+  //   return __spirv::initBuiltInGlobalInvocationId<Dims, id<Dims>>();
+  // }
+
+  // template <int Dims, bool WithOffset>
+  // static std::enable_if_t<WithOffset, const item<Dims, WithOffset>> getItem()
+  // {
+  //   static_assert(is_valid_dimensions<Dims>, "invalid dimensions");
+  //   id<Dims> GlobalId{__spirv::initBuiltInGlobalInvocationId<Dims,
+  //   id<Dims>>()}; range<Dims> GlobalSize{__spirv::initBuiltInGlobalSize<Dims,
+  //   range<Dims>>()}; id<Dims>
+  //   GlobalOffset{__spirv::initBuiltInGlobalOffset<Dims, id<Dims>>()}; return
+  //   createItem<Dims, true>(GlobalSize, GlobalId, GlobalOffset);
+  // }
+
+  // template <int Dims, bool WithOffset>
+  // static std::enable_if_t<!WithOffset, const item<Dims, WithOffset>>
+  // getItem() {
+  //   static_assert(is_valid_dimensions<Dims>, "invalid dimensions");
+  //   id<Dims> GlobalId{__spirv::initBuiltInGlobalInvocationId<Dims,
+  //   id<Dims>>()}; range<Dims> GlobalSize{__spirv::initBuiltInGlobalSize<Dims,
+  //   range<Dims>>()}; return createItem<Dims, false>(GlobalSize, GlobalId);
+  // }
+
+  // template <int Dims, bool WithOffset>
+  // static auto getElement(item<Dims, WithOffset> *)
+  //     -> decltype(getItem<Dims, WithOffset>()) {
+  //   return getItem<Dims, WithOffset>();
+  // }
+
+  // template <typename KernelName, typename ElementType, typename KernelType>
+  // __SYCL_ENTRY_POINT_ATTR__ static void
+  // kernel_parallel_for(const KernelType &KernelFunc) {
+  //   KernelFunc(getElement(detail::declptr<ElementType>()));
+  // }
+
+  template <typename, typename... Args>
+  void sycl_kernel_launch(const char *KernelName, Args... args) {
+
+    std::vector<detail::ArgWrapper> TypelessArgs;
+    // check is device copyable
+    TypelessArgs.reserve(sizeof...(args));
+    (TypelessArgs.push_back(detail::ArgWrapper(args)), ...);
+
+    submitKernelImpl(KernelName, TypelessArgs);
+  }
+
 private:
   queue(const std::shared_ptr<detail::QueueImpl> &Impl) : impl(Impl) {}
   std::shared_ptr<detail::QueueImpl> impl;
+
+  event getLastEvent();
+  void
+  submitKernelImpl(const char *KernelName,
+                   const std::vector<detail::ArgWrapperBase> &TypelessArgs);
+  void setKernelParameters(const std::vector<event> &Events,
+                           const detail::UnifiedRangeView &Range = {});
 
   friend sycl::detail::ImplUtils;
 }; // class queue

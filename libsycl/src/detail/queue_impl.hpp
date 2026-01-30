@@ -15,6 +15,7 @@
 #include <OffloadAPI.h>
 
 #include <memory>
+#include <mutex>
 
 _LIBSYCL_BEGIN_NAMESPACE_SYCL
 namespace detail {
@@ -67,13 +68,31 @@ public:
   /// \return true if queue is in order.
   bool isInOrder() const { return MIsInorder; }
 
+  void submitKernelImpl(const char* KernelName, std::vector<detail::ArgWrapper> TypelessArgs);
+
+  EventImplPtr getLastEvent() { 
+    assert(MLastEvent && "getLastEvent must be called after enqueue");
+    return MLastEvent; }
+
+  void setKernelParameters(std::vector<EventImplPtr> &&Events,
+                           const sycl::range<Dims> &Range) {
+    MDepEvents = std::forward(Events);
+    MRange = Range;
+  }
+
 private:
+  // Queue features
   // ol_queue_handle_t MOffloadQueue = {};
   const bool MIsInorder;
   const async_handler MAsyncHandler;
   const property_list MPropList;
   DeviceImpl &MDevice;
   ContextImpl &MContext;
+  // Submit data
+  std::mutex MMutex;
+  thread local EventImplPtr MLastEvent;
+  thread local range<Dims> MRange;
+  thread local std::vector<EventImplPtr> MDepEvents;
 };
 
 } // namespace detail

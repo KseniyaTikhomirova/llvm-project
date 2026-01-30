@@ -33,4 +33,8 @@ device queue::get_device() const {
 
 bool queue::is_in_order() const { return impl->isInOrder(); }
 
+event queue::getLastEvent() const { return detail::createSyclObjFromImpl<event>(impl->getLastEvent()); }
+
+void addKernelDependencies(std::vector<event> Events) {}
+
 _LIBSYCL_END_NAMESPACE_SYCL

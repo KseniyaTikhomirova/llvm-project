@@ -99,7 +99,7 @@ public:
                    Result.data());
       return Result;
     } else if constexpr (olInfo == OL_DEVICE_INFO_TYPE) {
-      assert((sizeof(DescType) == ExpectedSize) &&
+      assert((sizeof(typename Param::return_type) == ExpectedSize) &&
              "Size of info descriptor reported by backend doesn't match with "
              "expected.");
       ol_device_type_t olType{};
