@@ -106,7 +106,7 @@ void *malloc(std::size_t numBytes, const device &syclDevice,
 
   void *Ptr{};
   auto Result = detail::callNoCheck(
-      olMemAlloc, detail::getSyclObjImpl(syclDevice)->getOLHandle(),
+      olMemAlloc, detail::getSyclObjImpl(syclDevice)->getHandle(),
       detail::convertUSMTypeToOL(kind), numBytes, &Ptr);
   assert(!!Result != !!Ptr && "Successful USM allocation can't return nullptr");
   return detail::isFailed(Result) ? nullptr : Ptr;
