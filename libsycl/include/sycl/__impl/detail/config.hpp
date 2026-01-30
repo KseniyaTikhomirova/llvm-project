@@ -62,6 +62,24 @@ static_assert(_MSVC_LANG >= 201703L, "Libsycl requires C++17 or later.");
 static_assert(__cplusplus >= 201703L, "Libsycl requires C++17 or later.");
 #endif
 
+#ifndef __SYCL_ALWAYS_INLINE
+#if __has_attribute(always_inline)
+#define __SYCL_ALWAYS_INLINE __attribute__((always_inline))
+#else
+#define __SYCL_ALWAYS_INLINE
+#endif
+#endif // __SYCL_ALWAYS_INLINE
+
+#if __SYCL_ID_QUERIES_FIT_IN_INT__ && __has_builtin(__builtin_assume)
+#include <climits>
+#define __SYCL_ASSUME_INT(x) __builtin_assume((x) <= INT_MAX)
+#else
+#define __SYCL_ASSUME_INT(x)
+#if __SYCL_ID_QUERIES_FIT_IN_INT__ && !__has_builtin(__builtin_assume)
+#warning "No assumptions will be emitted due to no __builtin_assume available"
+#endif
+#endif
+
 #ifndef __SYCL2020_DEPRECATED
 #  if SYCL_LANGUAGE_VERSION == 202012L &&                                      \
       !defined(SYCL2020_DISABLE_DEPRECATION_WARNINGS)

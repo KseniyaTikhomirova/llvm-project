@@ -15,12 +15,16 @@
 #include <OffloadAPI.h>
 
 #include <memory>
+#include <mutex>
 
 _LIBSYCL_BEGIN_NAMESPACE_SYCL
 namespace detail {
 
 class ContextImpl;
 class DeviceImpl;
+class EventImpl;
+
+using EventImplPtr = std::shared_ptr<EventImpl>;
 
 class QueueImpl : public std::enable_shared_from_this<QueueImpl> {
   struct PrivateTag {
@@ -28,7 +32,11 @@ class QueueImpl : public std::enable_shared_from_this<QueueImpl> {
   };
 
 public:
-  ~QueueImpl() = default;
+  ~QueueImpl() {
+    // consider where to report errors
+    if (MOffloadQueue)
+      std::ignore = olDestroyQueue(MOffloadQueue);
+  }
 
   /// Constructs a SYCL queue from a device using an asyncHandler and
   /// a propList.
@@ -59,12 +67,76 @@ public:
   /// \return true if and only if the queue is in order.
   bool isInOrder() const { return MIsInorder; }
 
+  void submitKernelImpl(const char *KernelName,
+                        detail::ArgCollection &TypelessArgs);
+
+  EventImplPtr getLastEvent() {
+    assert(MCurrentSubmitInfo.LastEvent &&
+           "getLastEvent must be called after enqueue");
+    return MCurrentSubmitInfo.LastEvent;
+  }
+
+  void setKernelParameters(std::vector<const EventImplPtr *> &&Events,
+                           const detail::UnifiedRangeView &Range);
+
+  // extend for parallel_for
+  static void setKernelLaunchArgs(ol_kernel_launch_size_args_t &ArgsToSet,
+                                  const detail::UnifiedRangeView &Range) {
+  size_t GlobalSize[3] = {1, 1, 1};
+  if (Range.MGlobalSize) {
+    for (uint32_t I = 0; I < Range.MDims; I++) {
+      GlobalSize[I] = Range.MGlobalSize[I];
+    }
+  }
+
+  size_t GroupSize[3] = {1, 1, 1};
+  if (Range.MLocalSize) {
+    for (uint32_t I = 0; I < Range.MDims; I++) {
+      GroupSize[I] = Range.MLocalSize[I];
+    }
+  }
+
+  ArgsToSet.Dimensions = Range.MDims;
+  ArgsToSet.NumGroups.x = GlobalSize[0] / GroupSize[0];
+  ArgsToSet.NumGroups.y = GlobalSize[1] / GroupSize[1];
+  ArgsToSet.NumGroups.z = GlobalSize[2] / GroupSize[2];
+  ArgsToSet.GroupSize.x = GroupSize[0];
+  ArgsToSet.GroupSize.y = GroupSize[1];
+  ArgsToSet.GroupSize.z = GroupSize[2];
+  ArgsToSet.DynSharedMemory = 0;
+  }
+
+  // used for demonstration only. Without accessor and host task there is no
+  // valid scenario to delay enqueue.
+  static bool canEnqueueDirectly() { return true; }
+
+  void wait() {
+    auto Result = olSyncQueue(MOffloadQueue);
+    if (isFailed(Result))
+      throw; // or async?
+  }
+
 private:
+  // Queue features
+  ol_queue_handle_t MOffloadQueue = {};
   const bool MIsInorder;
   const async_handler MAsyncHandler;
   const property_list MPropList;
   DeviceImpl &MDevice;
   ContextImpl &MContext;
+
+  // Submit data
+  struct KernelSubmitInfo {
+    EventImplPtr LastEvent;
+    // range to be replaced with copy or OL data
+    ol_kernel_launch_size_args_t Range;
+    // consider storing EventImplPtr here, it will work with plain handle only
+    // because submission is done within queue::submit call. Otherwise we need
+    // to ensure that event handle is still alive by keeping our own copy of
+    // EventImpl.
+    std::vector<ol_event_handle_t> DepEvents;
+  };
+  inline static thread_local KernelSubmitInfo MCurrentSubmitInfo = {};
 };
 
 } // namespace detail
