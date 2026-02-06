@@ -12,8 +12,6 @@
 
 _LIBSYCL_BEGIN_NAMESPACE_SYCL
 
-  event::event() : impl(detail::event_impl::createDefaultEvent()) {}
-
   backend event::get_backend() const noexcept
   {
       return impl->getBackend();

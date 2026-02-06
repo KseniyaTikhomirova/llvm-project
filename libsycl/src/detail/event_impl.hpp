@@ -6,8 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef _LIBSYCL_EVENT_IMPL
-#define _LIBSYCL_EVENT_IMPL
+#ifndef _LIBSYCL_EventImpl
+#define _LIBSYCL_EventImpl
 
 #include <sycl/__impl/detail/config.hpp>
 #include <sycl/__impl/queue.hpp>
@@ -26,27 +26,29 @@ class EventImpl {
   };
 
 public:
-  event_impl(private_tag)
-  {  }
+  EventImpl(ol_event_handle_t Event, PlatformImpl &Platform, PrivateTag)
+      : MOffloadEvent(Event), MPlatform(Platform) {}
 
-  event_impl(ol_event_handle_t Event, QueueImpl &Queue, private_tag): MOffloadEvent(Event), MQueue(Queue)
-  { }
+  // static std::shared_ptr<EventImpl> createDefaultEvent() {
+  //   return std::make_shared<EventImpl>(PrivateTag{});
+  // }
 
-  static std::shared_ptr<event_impl> createDefaultEvent() {
-    return std::make_shared<event_impl>(private_tag{});
+  static std::shared_ptr<EventImpl>
+  createEventWithHandle(ol_event_handle_t Event, PlatformImpl &Queue) {
+    return std::make_shared<EventImpl>(Event, Queue, PrivateTag{});
   }
 
-  event_impl::~event_impl() {
+  ~EventImpl() {
     // consider where to report errors
     if (MOffloadEvent)
       std::ignore = olDestroyEvent(MOffloadEvent);
-}
+  }
 
   backend getBackend() const noexcept
   {
     // to handle default cosntructed
     //  The event is constructed as though it were created from a default-constructed queue. Therefore, its backend is the same as the backend of the device selected by default_selector_v.
-    return MContext->getBackend();
+    return MPlatform.getBackend();
   }
 
   void wait()
@@ -56,16 +58,18 @@ public:
       return;
 
       // No error reporting is declared for sycl::event::wait failures.
-      std::ignore = olSyncEvent(MOFfloadEvent);
+    std::ignore = olSyncEvent(MOffloadEvent);
   }
+
+  ol_event_handle_t getHandle() { return MOffloadEvent; }
 
 private:
   ol_event_handle_t MOffloadEvent{};
-  std::weak_ptr<QueueImpl> MQueue;
+  PlatformImpl &MPlatform;
 };
 
 } // namespace detail
 
 _LIBSYCL_END_NAMESPACE_SYCL
 
-#endif // _LIBSYCL_EVENT_IMPL
+#endif // _LIBSYCL_EventImpl

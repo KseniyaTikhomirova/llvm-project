@@ -7,6 +7,7 @@
 //===----------------------------------------------------------------------===//
 
 #include <detail/device_impl.hpp>
+#include <detail/event_impl.hpp>
 #include <detail/queue_impl.hpp>
 
 _LIBSYCL_BEGIN_NAMESPACE_SYCL
@@ -17,33 +18,40 @@ QueueImpl::QueueImpl(DeviceImpl &deviceImpl, const async_handler &asyncHandler,
                      const property_list &propList, PrivateTag)
     : MIsInorder(false), MAsyncHandler(asyncHandler), MPropList(propList),
       MDevice(deviceImpl),
-      MContext(MDevice.getPlatformImpl().getDefaultContext()) {}
+      MContext(MDevice.getPlatformImpl().getDefaultContext()) {
+  auto Result = olCreateQueue(MDevice.getHandle(), &MOffloadQueue);
+  if (!isSuccess(Result))
+    throw;
+      }
 
 backend QueueImpl::getBackend() const noexcept { return MDevice.getBackend(); }
 
-// used for demonstration only. Without accessor and host task there is no valid
-// scenario to delay enqueue.
-static bool canEnqueueDirectly() { return true; }
+void QueueImpl::setKernelParameters(std::vector<const EventImplPtr *> &&Events,
+                                    const detail::UnifiedRangeView &Range) {
+  //   "The input events can be from any queue on any device provided by the
+  //   same platform as `Queue`.",
+  // check
 
-// extend for parallel_for
-static void setKernelLaunchArgs(ol_kernel_launch_size_args_t &ArgsToSet) {
-  ArgsToSet.Dimensions = 1;
-  ArgsToSet.NumGroups.x = 1;
-  ArgsToSet.NumGroups.y = 1;
-  ArgsToSet.NumGroups.z = 1;
-  ArgsToSet.GroupSize.x = 1;
-  ArgsToSet.GroupSize.y = 1;
-  ArgsToSet.GroupSize.z = 1;
-  ArgsToSet.DynSharedMemory = 0;
+  // This convertion and storing only offload events is possible only while we
+  // don't have host tasks (and featured based on host tasks, like streams).
+  // With them - it is very likely we should copy EventImplPtr (shared_ptr) and
+  // keep it here. Although it may differ if host tasks will be implemented on
+  // offload level (no data now).
+  assert(MCurrentSubmitInfo.DepEvents.empty() &&
+         "Kernel submission must clean up.");
+  MCurrentSubmitInfo.DepEvents.reserve(Events.size());
+  for (auto &Event : Events) {
+    assert(Event && "Event impl object can't be nullptr");
+    MCurrentSubmitInfo.DepEvents.push_back((*Event)->getHandle());
+  }
+  setKernelLaunchArgs(MCurrentSubmitInfo.Range, Range);
 }
+
 // rvalue to ArgCollection?
-void submitKernelImpl(const char *KernelName,
-                      detail::ArgCollection &TypelessArgs) {
+void QueueImpl::submitKernelImpl(const char *KernelName,
+                      detail::ArgCollection &&TypelessArgs) {
   // to create progrma & kernel
   ol_symbol_handle_t Kernel;
-
-  ol_kernel_launch_size_args_t LaunchArgs{};
-  setKernelLaunchArgs(LaunchArgs);
 
   // canEnqueueDirectly should check accessor presence & host task dependency
   // (incl. streams).
@@ -56,29 +64,29 @@ void submitKernelImpl(const char *KernelName,
   }
 
   ol_event_handle_t NewEvent{};
-  {
-    std::lock_guard<std::mutex> Guard(MMutex);
-    if (!MDepEvents.empty()) {
-      std::vector<EventImplPtr> SwappedDepEvents;
-      SwappedDepEvents.swap(MDepEvents);
-      // do conversion to offload event handles
-      if (!isSuccess(olWaitEvents(MOffloadQueue, SwappedDepEvents.data(),
-                                  SwappedDepEvents.size())))
-        throw;
-    }
-
-    auto Result = olLaunchKernel(MOffloadQueue, MDevice, Kernel,
-                                 TypelessArgs.getArgumentsArray(),
-                                 TypelessArgs.getSizesArray(),
-                                 TypelessArgs.getArgumentCount(), &LaunchArgs);
-    if (!isSuccess(Result))
-      throw;
-
-    Result = olCreateEvent(MOffloadQueue, &NewEvent);
-    if (!isSuccess(Result))
+  if (!MCurrentSubmitInfo.DepEvents.empty()) {
+    if (!isSuccess(olWaitEvents(MOffloadQueue, MCurrentSubmitInfo.DepEvents.data(),
+                                MCurrentSubmitInfo.DepEvents.size())))
       throw;
   }
-  MLastEvent = new EventImpl(NewEvent, MOffloadQueue);
+
+  auto Result = olLaunchKernel(
+      MOffloadQueue, MDevice, Kernel, TypelessArgs.getArgumentsArray(),
+      TypelessArgs.getSizesArray(), TypelessArgs.getArgumentCount(),
+      &MCurrentSubmitInfo.Range);
+  // clean up current kernel submit data to prepare structures for next
+  // submission.
+  MCurrentSubmitInfo.DepEvents.clear();
+  MCurrentSubmitInfo.Range = {};
+  if (!isSuccess(Result))
+    throw;
+
+  Result = olCreateEvent(MOffloadQueue, &NewEvent);
+  if (!isSuccess(Result))
+    throw;
+
+  MCurrentSubmitInfo.LastEvent =
+      EventImpl::createEventWithHandle(NewEvent, MDevice.getPlatformImpl());
 }
 
 } // namespace detail

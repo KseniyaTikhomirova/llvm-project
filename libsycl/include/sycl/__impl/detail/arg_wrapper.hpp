@@ -16,10 +16,10 @@
 #define _LIBSYCL___IMPL_DETAIL_ARG_WRAPPER_HPP
 
 #include <sycl/__impl/detail/config.hpp>
+#include <sycl/__impl/exception.hpp>
 
 #include <algorithm>
 #include <cassert>
-#include <iterator>
 #include <memory>
 
 _LIBSYCL_BEGIN_NAMESPACE_SYCL
@@ -78,21 +78,10 @@ private:
 
 class ArgCollection {
 public:
-  ArgCollection(size_t Size) { MArgs.reserve(Size); }
+  template <typename Type> void addArg(Type &&Arg) {
+    // is device copyabl
 
-  template <typename Type> void addArg(Type &Arg, int Index = -1) {
-    assert(MArgs.capacity() > MArgs.size() && "Unexpected arguments count.");
-    // is device copyable
-
-    size_t IndexToUse = Index > 0 ? Index : MArgs.size();
-    if (IndexToUse > MArgs.capacity())
-      throw sycl::exception(make_error_code(errc::invalid),
-                            "Index is out of range.");
-    // This is more like warning than assert since it is an allowed usage.
-    // But this usage must be intentional.
-    assert(IndexToUse <= MArgs.size() && "Insertion is not sequential. ");
-
-    MArgs.insert(MArgs.begin() + IndexToUse, Arg);
+    MArgs.push_back(std::forward(Arg));
   }
 
   void **getArgumentsArray() {

@@ -27,9 +27,7 @@ class EventImpl;
 }
 
 class event {
- public:
-  event();
-
+public:
   event(const event &rhs) = default;
 
   event(event &&rhs) = default;

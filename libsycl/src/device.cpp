@@ -30,7 +30,7 @@ std::vector<device> device::get_devices(info::device_type DeviceType) {
 
   // Not calling platform::get_devices to avoid multiple vector packing
   for (auto &PlatformImpl : detail::PlatformImpl::getPlatforms()) {
-    assert(platformImpl && "platformImpl can not be nullptr");
+    assert(PlatformImpl && "platformImpl can not be nullptr");
     PlatformImpl->iterateDevices(
         DeviceType, [&Devices](detail::DeviceImpl *DevImpl) {
           assert(DevImpl && "Device impl can't be nullptr");

@@ -11,6 +11,7 @@
 
 #include <detail/context_impl.hpp>
 #include <detail/device_impl.hpp>
+#include <detail/event_impl.hpp>
 #include <detail/queue_impl.hpp>
 
 _LIBSYCL_BEGIN_NAMESPACE_SYCL
@@ -33,8 +34,18 @@ device queue::get_device() const {
 
 bool queue::is_in_order() const { return impl->isInOrder(); }
 
-event queue::getLastEvent() const { return detail::createSyclObjFromImpl<event>(impl->getLastEvent()); }
+event queue::getLastEvent() {
+  return detail::createSyclObjFromImpl<event>(impl->getLastEvent());
+}
 
-void addKernelDependencies(std::vector<event> Events) {}
+void queue::setKernelParameters(const std::vector<event> &Events,
+                                const detail::UnifiedRangeView &Range) {
+  std::vector<const detail::EventImplPtr *> DepEventImplRefs;
+  DepEventImplRefs.reserve(Events.size());
+  for (auto &Event : Events) {
+    DepEventImplRefs.push_back(&detail::getSyclObjImpl(Event));
+  }
+  return impl->setKernelParameters(std::move(DepEventImplRefs), Range);
+}
 
 _LIBSYCL_END_NAMESPACE_SYCL
