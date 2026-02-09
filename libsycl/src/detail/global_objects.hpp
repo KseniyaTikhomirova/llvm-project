@@ -20,6 +20,7 @@ _LIBSYCL_BEGIN_NAMESPACE_SYCL
 
 namespace detail {
 class PlatformImpl;
+class ProgramManager;
 
 /// Returns offload topologies (one per backend) discovered from liboffload.
 ///

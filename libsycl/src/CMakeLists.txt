@@ -82,6 +82,7 @@ endfunction(add_sycl_rt_library)
 
 set(LIBSYCL_SOURCES
     "context.cpp"
+    "event.cpp"
     "exception.cpp"
     "exception_list.cpp"
     "device.cpp"
@@ -91,8 +92,10 @@ set(LIBSYCL_SOURCES
     "usm_functions.cpp"
     "detail/context_impl.cpp"
     "detail/device_impl.cpp"
+    "detail/event_impl.cpp"
     "detail/global_objects.cpp"
     "detail/platform_impl.cpp"
+    "detail/program_manager.cpp"
     "detail/queue_impl.cpp"
     "detail/offload/offload_utils.cpp"
     "detail/offload/offload_topology.cpp"

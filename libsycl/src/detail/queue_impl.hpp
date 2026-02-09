@@ -123,7 +123,7 @@ private:
    // EventImpl.
    std::vector<ol_event_handle_t> DepEvents;
   };
-  static thread_local KernelSubmitInfo MCurrentSubmitInfo;
+  inline static thread_local KernelSubmitInfo MCurrentSubmitInfo = {};
 };
 
 } // namespace detail

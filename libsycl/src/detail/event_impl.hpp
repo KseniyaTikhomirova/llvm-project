@@ -6,8 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef _LIBSYCL_EventImpl
-#define _LIBSYCL_EventImpl
+#ifndef _LIBSYCL_EVENT_IMPL
+#define _LIBSYCL_EVENT_IMPL
 
 #include <sycl/__impl/detail/config.hpp>
 #include <sycl/__impl/queue.hpp>
@@ -19,6 +19,7 @@
 _LIBSYCL_BEGIN_NAMESPACE_SYCL
 namespace detail {
 
+class PlatformImpl;
 
 class EventImpl {
   struct PrivateTag {
@@ -44,12 +45,7 @@ public:
       std::ignore = olDestroyEvent(MOffloadEvent);
   }
 
-  backend getBackend() const noexcept
-  {
-    // to handle default cosntructed
-    //  The event is constructed as though it were created from a default-constructed queue. Therefore, its backend is the same as the backend of the device selected by default_selector_v.
-    return MPlatform.getBackend();
-  }
+  backend getBackend() const noexcept;
 
   void wait()
   {
@@ -72,4 +68,4 @@ private:
 
 _LIBSYCL_END_NAMESPACE_SYCL
 
-#endif // _LIBSYCL_EventImpl
+#endif // _LIBSYCL_EVENT_IMPL

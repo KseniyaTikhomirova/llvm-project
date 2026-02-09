@@ -8,6 +8,7 @@
 
 #include <detail/device_impl.hpp>
 #include <detail/event_impl.hpp>
+#include <detail/program_manager.hpp>
 #include <detail/queue_impl.hpp>
 
 _LIBSYCL_BEGIN_NAMESPACE_SYCL
@@ -51,7 +52,10 @@ void QueueImpl::setKernelParameters(std::vector<const EventImplPtr *> &&Events,
 void QueueImpl::submitKernelImpl(const char *KernelName,
                       detail::ArgCollection &&TypelessArgs) {
   // to create progrma & kernel
-  ol_symbol_handle_t Kernel;
+  ol_symbol_handle_t Kernel =
+      detail::ProgramManager::getInstance().getOrCreateKernel(
+          KernelName, MDevice.getHandle());
+  assert(Kernel);
 
   // canEnqueueDirectly should check accessor presence & host task dependency
   // (incl. streams).
@@ -69,11 +73,14 @@ void QueueImpl::submitKernelImpl(const char *KernelName,
                                 MCurrentSubmitInfo.DepEvents.size())))
       throw;
   }
-
-  auto Result = olLaunchKernel(
-      MOffloadQueue, MDevice, Kernel, TypelessArgs.getArgumentsArray(),
-      TypelessArgs.getSizesArray(), TypelessArgs.getArgumentCount(),
-      &MCurrentSubmitInfo.Range);
+  ol_kernel_launch_prop_t Props[2];
+  Props[0].type = OL_KERNEL_LAUNCH_PROP_TYPE_SIZE;
+  Props[0].data = TypelessArgs.getSizesArray();
+  Props[1] = OL_KERNEL_LAUNCH_PROP_END;
+  auto Result = olLaunchKernel(MOffloadQueue, MDevice.getHandle(), Kernel,
+                               TypelessArgs.getArgumentsArray(),
+                               TypelessArgs.getArgumentCount() * sizeof(void *),
+                               &MCurrentSubmitInfo.Range, Props);
   // clean up current kernel submit data to prepare structures for next
   // submission.
   MCurrentSubmitInfo.DepEvents.clear();

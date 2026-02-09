@@ -19,6 +19,7 @@
 #include <sycl/__impl/detail/obj_utils.hpp>
 
 #include <memory>
+#include <vector>
 
 _LIBSYCL_BEGIN_NAMESPACE_SYCL
 
