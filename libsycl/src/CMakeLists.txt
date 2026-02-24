@@ -14,6 +14,7 @@ function(add_sycl_rt_library LIB_TARGET_NAME LIB_OBJ_NAME LIB_OUTPUT_NAME)
   add_library(${LIB_TARGET_NAME} SHARED
               $<TARGET_OBJECTS:${LIB_OBJ_NAME}>)
 
+  add_definitions(-g -O0)
   add_dependencies(${LIB_OBJ_NAME}
     sycl-headers
     LLVMOffload
@@ -91,6 +92,7 @@ set(LIBSYCL_SOURCES
     "queue.cpp"
     "usm_functions.cpp"
     "detail/context_impl.cpp"
+    "detail/device_image_wrapper.cpp"
     "detail/device_impl.cpp"
     "detail/event_impl.cpp"
     "detail/global_objects.cpp"

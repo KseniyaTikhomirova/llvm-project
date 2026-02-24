@@ -254,6 +254,9 @@ public:
   //     return getLastEvent();
   //   }
 
+  void wait() { // ktikhomi, to implement
+  }
+
 private:
 // #ifdef SYCL_LANGUAGE_VERSION
 #define _LIBSYCL_ENTRY_POINT_ATTR__(KernelName)                                \
@@ -265,11 +268,11 @@ private:
   template <typename KernelName, typename KernelType>
   // check if ifdef here can be removed
   // check if it is even needed
-#ifdef __SYCL_DEVICE_ONLY__
-  [[__sycl_detail__::add_ir_attributes_function("sycl-single-task")]]
-#endif
-  _LIBSYCL_ENTRY_POINT_ATTR__(KernelName)
-  void  kernel_single_task(const KernelType &KernelFunc) {
+  // #ifdef __SYCL_DEVICE_ONLY__
+  //   [[__sycl_detail__::add_ir_attributes_function("sycl-single-task")]]
+  // #endif
+  _LIBSYCL_ENTRY_POINT_ATTR__(KernelName) void kernel_single_task(
+      const KernelType &KernelFunc) {
     KernelFunc();
   }
 
@@ -317,22 +320,19 @@ private:
   template <typename, typename... Args>
   void sycl_kernel_launch(const char *KernelName, Args... args) {
 
-    std::vector<detail::ArgWrapperBase> TypelessArgs;
+    detail::ArgCollection TypelessArgs;
     // check is device copyable
-    TypelessArgs.reserve(sizeof...(args));
-    (TypelessArgs.push_back(detail::ArgWrapper<Args>(args)), ...);
+    (TypelessArgs.addArg(args), ...);
 
     submitKernelImpl(KernelName, TypelessArgs);
   }
 
-private:
   queue(const std::shared_ptr<detail::QueueImpl> &Impl) : impl(Impl) {}
   std::shared_ptr<detail::QueueImpl> impl;
 
   event getLastEvent();
-  void
-  submitKernelImpl(const char *KernelName,
-                   const std::vector<detail::ArgWrapperBase> &TypelessArgs);
+  void submitKernelImpl(const char *KernelName,
+                        detail::ArgCollection &TypelessArgs);
   void setKernelParameters(const std::vector<event> &Events,
                            const detail::UnifiedRangeView &Range = {});
 

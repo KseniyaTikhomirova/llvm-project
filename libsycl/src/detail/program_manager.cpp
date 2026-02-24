@@ -6,7 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include <detail/device_binary_wrapper.hpp>
+#include <sycl/__impl/exception.hpp>
+
 #include <detail/program_manager.hpp>
 
 _LIBSYCL_BEGIN_NAMESPACE_SYCL

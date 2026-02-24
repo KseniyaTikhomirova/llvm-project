@@ -6,8 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef _LIBSYCL_EVENT_IMPL
-#define _LIBSYCL_EVENT_IMPL
+#ifndef _LIBSYCL_DEVICE_BINARY_WRAPPER
+#define _LIBSYCL_DEVICE_BINARY_WRAPPER
 
 #include <sycl/__impl/detail/config.hpp>
 
@@ -75,9 +75,9 @@ public:
   //     sycl_device_binary_property End;
   //   };
 
-  public:
-    // RTDeviceBinaryImage() : Bin(nullptr) {}
-    DeviceImageWrapper(const __sycl_tgt_device_image& Bin);
+public:
+  // RTDeviceBinaryImage() : Bin(nullptr) {}
+  DeviceImageWrapper(const __sycl_tgt_device_image &Bin);
   //   // Explicitly delete copy constructor/operator= to avoid unintentional
   //   copies RTDeviceBinaryImage(const RTDeviceBinaryImage &) = delete;
   //   RTDeviceBinaryImage &operator=(const RTDeviceBinaryImage &) = delete;
@@ -133,10 +133,10 @@ public:
   //     return ImageId;
   //   }
 
-  protected:
-    const __sycl_tgt_device_image& get() const { return Bin; }
+protected:
+  const __sycl_tgt_device_image &get() const { return MBin; }
 
-    const __sycl_tgt_device_image& Bin;
+  const __sycl_tgt_device_image &MBin;
 
   //   ur::DeviceBinaryType Format = SYCL_DEVICE_BINARY_TYPE_NONE;
 
@@ -146,13 +146,13 @@ public:
 
   //   std::vector<ur_program_metadata_t> ProgramMetadataUR;
 
-// private:
-//   static std::atomic<uintptr_t> ImageCounter;
-//   uintptr_t ImageId = 0;
+  // private:
+  //   static std::atomic<uintptr_t> ImageCounter;
+  //   uintptr_t ImageId = 0;
 };
 
 } // namespace detail
 
 _LIBSYCL_END_NAMESPACE_SYCL
 
-#endif // _LIBSYCL_EVENT_IMPL
+#endif // _LIBSYCL_DEVICE_BINARY_WRAPPER

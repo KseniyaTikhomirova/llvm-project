@@ -50,7 +50,7 @@ void QueueImpl::setKernelParameters(std::vector<const EventImplPtr *> &&Events,
 
 // rvalue to ArgCollection?
 void QueueImpl::submitKernelImpl(const char *KernelName,
-                      detail::ArgCollection &&TypelessArgs) {
+                                 detail::ArgCollection &TypelessArgs) {
   // to create progrma & kernel
   ol_symbol_handle_t Kernel =
       detail::ProgramManager::getInstance().getOrCreateKernel(

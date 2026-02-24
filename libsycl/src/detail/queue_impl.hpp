@@ -75,7 +75,8 @@ public:
   /// \return true if queue is in order.
   bool isInOrder() const { return MIsInorder; }
 
-  void submitKernelImpl(const char* KernelName, detail::ArgCollection&& TypelessArgs);
+  void submitKernelImpl(const char *KernelName,
+                        detail::ArgCollection &TypelessArgs);
 
   EventImplPtr getLastEvent() { 
     assert(MCurrentSubmitInfo.LastEvent && "getLastEvent must be called after enqueue");

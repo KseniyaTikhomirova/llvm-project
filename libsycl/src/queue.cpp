@@ -48,4 +48,9 @@ void queue::setKernelParameters(const std::vector<event> &Events,
   return impl->setKernelParameters(std::move(DepEventImplRefs), Range);
 }
 
+void queue::submitKernelImpl(const char *KernelName,
+                             detail::ArgCollection &TypelessArgs) {
+  impl->submitKernelImpl(KernelName, TypelessArgs);
+}
+
 _LIBSYCL_END_NAMESPACE_SYCL

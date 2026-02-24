@@ -11,18 +11,32 @@
 
 #include <sycl/__impl/detail/config.hpp>
 
-#include <detail/device_binary_wrapper.hpp>
+#include <detail/device_binary_structures.hpp>
+#include <detail/device_image_wrapper.hpp>
 #include <detail/kernel_id.hpp>
 
 #include <OffloadAPI.h>
 
 #include <unordered_map>
+#include <vector>
+
+// +++ Entry points referenced by the offload wrapper object {
+
+/// Executed as a part of current module's (.exe, .dll) static initialization.
+/// Registers device executable images with the runtime.
+extern "C" _LIBSYCL_EXPORT void __sycl_register_lib(__sycl_tgt_bin_desc *desc);
+
+/// Executed as a part of current module's (.exe, .dll) static
+/// de-initialization.
+/// Unregisters device executable images with the runtime.
+extern "C" _LIBSYCL_EXPORT void
+__sycl_unregister_lib(__sycl_tgt_bin_desc *desc);
+
+// +++ }
 
 _LIBSYCL_BEGIN_NAMESPACE_SYCL
 
 namespace detail {
-
-class DeviceImageWrapper;
 
 class ProgramWrapper {
 public:

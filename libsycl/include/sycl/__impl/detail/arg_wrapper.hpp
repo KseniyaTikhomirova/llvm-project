@@ -28,7 +28,6 @@ namespace detail {
 
 class ArgWrapperBase {
 public:
-  ArgWrapperBase() = default;
   ArgWrapperBase(const ArgWrapperBase &) = delete;
   ArgWrapperBase &operator=(const ArgWrapperBase &) = delete;
   virtual ~ArgWrapperBase() = default;
@@ -36,6 +35,9 @@ public:
   virtual void deepCopy() = 0;
   virtual size_t getSize() const = 0;
   virtual void *getPtr() const = 0;
+
+protected:
+  ArgWrapperBase() = default;
 };
 
 template <typename Type> class ArgWrapper : public ArgWrapperBase {
@@ -68,7 +70,7 @@ public:
       return;
 
     DeepCopy.reset(new RawType(*Ptr));
-    Ptr = &DeepCopy.get();
+    Ptr = DeepCopy.get();
   }
 
 private:
@@ -78,17 +80,20 @@ private:
 
 class ArgCollection {
 public:
-  template <typename Type> void addArg(Type &&Arg) {
+  template <typename Type> void addArg(Type &Arg) {
     // is device copyabl
 
-    MArgs.push_back(std::forward(Arg));
+    MArgs.emplace_back(new ArgWrapper(Arg));
   }
 
   void **getArgumentsArray() {
     if (MPtrs.size() != MArgs.size()) {
       MPtrs.clear();
-      std::transform(MArgs.cbegin(), MArgs.cend(), MPtrs.begin(),
-                     [](const ArgWrapperBase &Arg) { return Arg.getPtr(); });
+      MPtrs.resize(MArgs.size());
+      auto it = MArgs.cbegin();
+      while (it != MArgs.cend()) {
+        MPtrs.push_back((*it++)->getPtr());
+      }
     }
     return MPtrs.data();
   }
@@ -96,10 +101,11 @@ public:
   int64_t *getSizesArray() {
     if (MSizes.size() != MArgs.size()) {
       MSizes.clear();
-      std::transform(MArgs.cbegin(), MArgs.cend(), MSizes.begin(),
-                     [](const ArgWrapperBase &Arg) {
-                       return static_cast<int64_t>(Arg.getSize());
-                     });
+      MSizes.resize(MArgs.size());
+      auto it = MArgs.cbegin();
+      while (it != MArgs.cend()) {
+        MSizes.push_back(static_cast<int64_t>((*it++)->getSize()));
+      }
     }
     return MSizes.data();
   }
@@ -108,11 +114,11 @@ public:
 
   void deepCopy() {
     for (auto &Arg : MArgs)
-      Arg.deepCopy();
+      Arg->deepCopy();
   }
 
 private:
-  std::vector<ArgWrapperBase> MArgs;
+  std::vector<std::unique_ptr<ArgWrapperBase>> MArgs;
   std::vector<int64_t> MSizes;
   std::vector<void *> MPtrs;
 };
