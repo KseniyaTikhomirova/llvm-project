@@ -18,6 +18,7 @@ function(add_sycl_rt_library LIB_TARGET_NAME LIB_OBJ_NAME LIB_OUTPUT_NAME)
   add_dependencies(${LIB_OBJ_NAME}
     sycl-headers
     LLVMOffload
+    LLVMObject
   )
 
   target_include_directories(${LIB_OBJ_NAME}
@@ -25,6 +26,7 @@ function(add_sycl_rt_library LIB_TARGET_NAME LIB_OBJ_NAME LIB_OUTPUT_NAME)
       ${CMAKE_CURRENT_SOURCE_DIR}
       ${LIBSYCL_BUILD_INCLUDE_DIR}
       $<TARGET_PROPERTY:LLVMOffload,INTERFACE_INCLUDE_DIRECTORIES>
+      ${LLVM_MAIN_INCLUDE_DIR}
   )
 
   set_target_properties(${LIB_TARGET_NAME}

@@ -9,8 +9,6 @@
 #ifndef _LIBSYCL_DEVICE_BINARY_STRUCTURES
 #define _LIBSYCL_DEVICE_BINARY_STRUCTURES
 
-// #include <llvm/Object/OffloadBinary.h>
-
 #include <cstdint>
 
 // replace?????
@@ -24,9 +22,9 @@ enum sycl_device_binary_type : uint8_t {
 };
 
 // Target identification strings
-#define __SYCL_DEVICE_BINARY_TARGET_TRIPLE_UNKNOWN "unknown-unknown-unknown"
+#define _LIBSYCL_DEVICE_BINARY_TARGET_TRIPLE_UNKNOWN "unknown-unknown-unknown"
 // SPIR-V with 64-bit pointers
-#define __SYCL_DEVICE_BINARY_TARGET_TRIPLE_SPIRV64 "spirv64-unknown-unknown"
+#define _LIBSYCL_DEVICE_BINARY_TARGET_SPIRV64 "spirv64-unknown-unknown"
 
 // This is a replica of the EntryTy data structure in
 // llvm/include/llvm/Frontend/Offloading/Utility.h.
@@ -85,5 +83,33 @@ struct __sycl_tgt_bin_desc {
   EntryTy *HostEntriesBegin;
   EntryTy *HostEntriesEnd;
 };
+
+// TODO: would be nice to include it from llvm/Object. It doesn't work now since
+// I have to link LLVMObject to do that (linker error otherwise). Copy of
+// llvm::object::OffloadKind.
+/// The producer of the associated offloading image.
+enum OffloadKind : uint16_t {
+  OFK_None = 0,
+  OFK_OpenMP = (1 << 0),
+  OFK_Cuda = (1 << 1),
+  OFK_HIP = (1 << 2),
+  OFK_SYCL = (1 << 3),
+  OFK_LAST = (1 << 4),
+};
+
+// Copy of llvm::object::ImageKind.
+/// The type of contents the offloading image contains.
+enum ImageKind : uint16_t {
+  IMG_None = 0,
+  IMG_Object,
+  IMG_Bitcode,
+  IMG_Cubin,
+  IMG_Fatbinary,
+  IMG_PTX,
+  IMG_SPIRV,
+  IMG_LAST,
+};
+
+static constexpr uint16_t LIBSYCL_SUPPORTED_OFFLOAD_BINARY_VERSION = 1;
 
 #endif // _LIBSYCL_DEVICE_BINARY_STRUCTURES

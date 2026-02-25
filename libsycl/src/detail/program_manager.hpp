@@ -38,6 +38,8 @@ _LIBSYCL_BEGIN_NAMESPACE_SYCL
 
 namespace detail {
 
+class DeviceImpl;
+
 class ProgramWrapper {
 public:
   ProgramWrapper(ol_device_handle_t Device, DeviceImageWrapper *DevImage);
@@ -64,29 +66,10 @@ public:
   }
 
   ol_symbol_handle_t getOrCreateKernel(const char *KernelName,
-                                       ol_device_handle_t Device) {
-    auto KernelIDIt = MKernelNameToID.find(KernelName);
-    if (KernelIDIt == MKernelNameToID.end())
-      // throw?
-      return nullptr;
-
-    auto Kernel = getKernel(KernelIDIt->second, Device);
-    if (Kernel)
-      return Kernel;
-
-    // DeviceImageWrapper *DevImage =
-    //     getDeviceImage(KernelID, Device(Type));
-    // if (!DevImage)
-    //   throw;
-
-    // ol_program_handle_t Program = getOrCreateProgram(DevImage, Device);
-    // assert(Program);
-    // Kernel = createKernel(Program, KernelName);
-    assert(Kernel);
-    return Kernel;
-  }
+                                       DeviceImpl &Device);
 
   void addImages(__sycl_tgt_bin_desc *FatbinDesc);
+  void removeImages(__sycl_tgt_bin_desc *FatbinDesc);
 
 private:
   ProgramManager() = default;
@@ -94,84 +77,39 @@ private:
   ProgramManager(ProgramManager const &) = delete;
   ProgramManager &operator=(ProgramManager const &) = delete;
 
-  // void addImages(__sycl_tgt_bin_desc *FatbinDesc) {}
+  DeviceImageWrapper *getDeviceImage(const char *KernelName, kernel_id KernelID,
+                                     DeviceImpl &Device);
 
-  // void removeImages(__sycl_tgt_bin_desc *FatbinDesc) {}
+  ol_program_handle_t getOrCreateProgram(DeviceImpl &Device,
+                                         DeviceImageWrapper *DevImage);
 
-  // DeviceImageWrapper *getDeviceImage(kernel_id KernelID, DeviceImpl &Device)
-  // {
-  //   // search
-  //   return nullptr;
-  // }
+  ol_symbol_handle_t createKernel(ol_program_handle_t Program,
+                                  const kernel_id &KernelID,
+                                  const char *KernelName, DeviceImpl &Device);
 
-  // ol_program_handle_t getOrCreateProgram(ol_device_handle_t Device,
-  //                                        DeviceImageWrapper *DevImage) {
-  //   auto ProgramIt = MPrograms.find({DevImage, Device});
-  //   if (ProgramIt != MPrograms.end())
-  //     return ProgramIt->second;
-
-  //   std::unique_ptr<ProgramWrapper> NewProgramWrapper(
-  //       new ProgramWrapper(Device, DevImage));
-  //   auto Program = NewProgramWrapper->getHandle();
-  //   // lock
-  //   {
-  //     MPrograms.insert(std::make_pair(DevImage.get(), Device), Program);
-  //     MProgramWrappers.push_back(std::move(NewProgramWrapper));
-  //   }
-
-  //   return Program;
-  // }
-
-  // ol_symbol_handle_t createKernel(ol_program_handle_t Program, const
-  // kernel_id& KernelID,
-  //                                 const char *KernelName) {
-  //   ol_symbol_handle_t Kernel{};
-
-  //   ol_result_t Result =
-  //       olGetSymbol(Program, KernelName, OL_SYMBOL_KIND_KERNEL, &Kernel);
-  //   if (!isSuccess(Result))
-  //     throw;
-  //   // lock
-  //   MKernels.insert(std::make_pair(Program, KernelID), Kernel);
-  //   return Kernel;
-  // }
-
-  ol_symbol_handle_t getKernel(const kernel_id &KernelID,
-                               ol_device_handle_t Device) {
-    // lock
-    auto Range = MKernels.equal_range(KernelID);
-    for (auto Kernels = Range.first; Kernels != Range.second; ++Kernels) {
-      auto &[KernelDevice, KernelSymbol] = Kernels->second;
-      if (KernelDevice == Device) {
-        assert(KernelSymbol && "Built kernel symbol can't be null");
-        return KernelSymbol;
-      }
-    }
-    return nullptr;
-  }
-
-static inline bool isDeviceImageCompressed(const __sycl_tgt_device_image& Bin) {
-  return Bin.ImageFormat == SYCL_DEVICE_BINARY_TYPE_COMPRESSED_NONE;
-}
+  ol_symbol_handle_t getKernel(const kernel_id &KernelID, DeviceImpl &Device);
 
   // add Mutexes
 
   // filled by addImages(...);
   std::unordered_map<std::string_view, kernel_id> MKernelNameToID;
-  // std::unordered_multimap<kernel_id, DeviceImageWrapper *>
-  //     MKernelIDToDevImageJIT;
+  std::unordered_map<kernel_id, DeviceImageWrapper *> MKernelIDToDevImageJIT;
 
   // Filled by getOrCreateKernel and everything it calls inside.
-  // std::map<std::pair<DeviceImageWrapper *, ol_device_handle_t>,
-  //          ol_program_handle_t>
-  //     MPrograms;
+  std::unordered_map<
+      DeviceImageWrapper *,
+      std::unordered_map<ol_device_handle_t, ol_program_handle_t>>
+      MPrograms;
   std::unordered_multimap<kernel_id,
                           std::pair<ol_device_handle_t, ol_symbol_handle_t>>
       MKernels;
 
   // controls lifetime
-  std::vector<std::unique_ptr<DeviceImageWrapper>> MDeviceImageWrappers;
-  // std::vector<std::unique_ptr<ProgramWrapper>> MProgramWrappers;
+  std::unordered_map<const __sycl_tgt_device_image *,
+                     std::unique_ptr<DeviceImageWrapper>>
+      MDeviceImageWrappers;
+  std::unordered_map<ol_program_handle_t, std::unique_ptr<ProgramWrapper>>
+      MProgramWrappers;
 };
 
 } // namespace detail

@@ -53,8 +53,8 @@ void QueueImpl::submitKernelImpl(const char *KernelName,
                                  detail::ArgCollection &TypelessArgs) {
   // to create progrma & kernel
   ol_symbol_handle_t Kernel =
-      detail::ProgramManager::getInstance().getOrCreateKernel(
-          KernelName, MDevice.getHandle());
+      detail::ProgramManager::getInstance().getOrCreateKernel(KernelName,
+                                                              MDevice);
   assert(Kernel);
 
   // canEnqueueDirectly should check accessor presence & host task dependency
