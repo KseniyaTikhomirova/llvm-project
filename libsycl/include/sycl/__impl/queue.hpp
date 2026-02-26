@@ -254,8 +254,7 @@ public:
   //     return getLastEvent();
   //   }
 
-  void wait() { // ktikhomi, to implement
-  }
+  void wait();
 
 private:
 // #ifdef SYCL_LANGUAGE_VERSION

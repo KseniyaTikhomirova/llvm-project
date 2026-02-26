@@ -16,9 +16,10 @@
 _LIBSYCL_BEGIN_NAMESPACE_SYCL
 namespace detail {
 
-static inline bool isDeviceImageCompressed(const __sycl_tgt_device_image &Bin) {
-  return Bin.ImageFormat == SYCL_DEVICE_BINARY_TYPE_COMPRESSED_NONE;
-}
+// static inline bool isDeviceImageCompressed(const __sycl_tgt_device_image
+// &Bin) {
+//   return Bin.ImageFormat == LIBSYCL_DEVICE_BINARY_TYPE_COMPRESSED_NONE;
+// }
 
 ProgramWrapper::ProgramWrapper(ol_device_handle_t Device,
                                DeviceImageWrapper *DevImage) {
@@ -138,11 +139,11 @@ void ProgramManager::addImages(__sycl_tgt_bin_desc *FatbinDesc) {
     if (EntriesB == EntriesE)
       continue;
 
-    if (isDeviceImageCompressed(RawDeviceImage))
-      throw sycl::exception(sycl::make_error_code(sycl::errc::runtime),
-                            "Recieved a compressed device image, but "
-                            "SYCL RT doesn't support compressed format."
-                            "Aborting. ");
+    // if (isDeviceImageCompressed(RawDeviceImage))
+    //   throw sycl::exception(sycl::make_error_code(sycl::errc::runtime),
+    //                         "Recieved a compressed device image, but "
+    //                         "SYCL RT doesn't support compressed format."
+    //                         "Aborting. ");
 
     std::unique_ptr<DeviceImageWrapper> NewImageWrapper =
         std::make_unique<DeviceImageWrapper>(RawDeviceImage);
@@ -155,7 +156,8 @@ void ProgramManager::addImages(__sycl_tgt_bin_desc *FatbinDesc) {
         sycl::kernel_id KernelID =
             detail::createSyclObjFromImpl<sycl::kernel_id>(
                 std::make_shared<detail::KernelIdImpl>(Name));
-        /*KernelIDIt = */ MKernelNameToID.insert(
+        KernelIDIt = MKernelNameToID.insert(
+            MKernelNameToID.end(),
             std::make_pair(std::string_view(Name), KernelID));
       }
 

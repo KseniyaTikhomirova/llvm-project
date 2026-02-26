@@ -36,13 +36,13 @@ public:
   const __sycl_tgt_device_image &getRawData() const { return *get(); }
 
   size_t getSize() const {
-    return static_cast<size_t>(MBin.ImageStart - MBin.ImageEnd);
+    return static_cast<size_t>(MBin->ImageStart - MBin->ImageEnd);
   }
 
 protected:
-  const __sycl_tgt_device_image *get() const { return &MBin; }
+  const __sycl_tgt_device_image *get() const { return MBin; }
 
-  const __sycl_tgt_device_image &MBin;
+  __sycl_tgt_device_image const *MBin{};
 };
 
 } // namespace detail

@@ -103,6 +103,12 @@ public:
   // valid scenario to delay enqueue.
   static bool canEnqueueDirectly() { return true; }
 
+  void wait() {
+    auto Result = olSyncQueue(MOffloadQueue);
+    if (!isSuccess(Result))
+      throw; // or async?
+  }
+
 private:
   // Queue features
   ol_queue_handle_t MOffloadQueue = {};

@@ -11,16 +11,6 @@
 
 #include <cstdint>
 
-// replace?????
-/// Types of device binary.
-enum sycl_device_binary_type : uint8_t {
-  SYCL_DEVICE_BINARY_TYPE_NONE = 0,   // undetermined
-  SYCL_DEVICE_BINARY_TYPE_NATIVE = 1, // specific to a device
-  SYCL_DEVICE_BINARY_TYPE_SPIRV = 2,
-  SYCL_DEVICE_BINARY_TYPE_LLVMIR_BITCODE = 3,
-  SYCL_DEVICE_BINARY_TYPE_COMPRESSED_NONE = 4
-};
-
 // Target identification strings
 #define _LIBSYCL_DEVICE_BINARY_TARGET_TRIPLE_UNKNOWN "unknown-unknown-unknown"
 // SPIR-V with 64-bit pointers
@@ -111,5 +101,14 @@ enum ImageKind : uint16_t {
 };
 
 static constexpr uint16_t LIBSYCL_SUPPORTED_OFFLOAD_BINARY_VERSION = 1;
+
+// /// Types of device binary.
+// enum DeviceBinaryType : uint8_t {
+//   LIBSYCL_DEVICE_BINARY_TYPE_NONE = 0,   // undetermined
+//   LIBSYCL_DEVICE_BINARY_TYPE_NATIVE = 1, // specific to a device
+//   LIBSYCL_DEVICE_BINARY_TYPE_SPIRV = 2,
+//   LIBSYCL_DEVICE_BINARY_TYPE_LLVMIR_BITCODE = 3,
+//   LIBSYCL_DEVICE_BINARY_TYPE_COMPRESSED_NONE = 4
+// };
 
 #endif // _LIBSYCL_DEVICE_BINARY_STRUCTURES

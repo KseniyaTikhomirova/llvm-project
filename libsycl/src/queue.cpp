@@ -53,4 +53,6 @@ void queue::submitKernelImpl(const char *KernelName,
   impl->submitKernelImpl(KernelName, TypelessArgs);
 }
 
+void queue::wait() { return impl->wait(); }
+
 _LIBSYCL_END_NAMESPACE_SYCL
