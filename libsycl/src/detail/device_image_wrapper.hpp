@@ -36,7 +36,7 @@ public:
   const __sycl_tgt_device_image &getRawData() const { return *get(); }
 
   size_t getSize() const {
-    return static_cast<size_t>(MBin->ImageStart - MBin->ImageEnd);
+    return static_cast<size_t>(MBin->ImageEnd - MBin->ImageStart);
   }
 
 protected:

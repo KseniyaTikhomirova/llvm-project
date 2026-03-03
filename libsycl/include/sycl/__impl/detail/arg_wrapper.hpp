@@ -21,6 +21,7 @@
 #include <algorithm>
 #include <cassert>
 #include <memory>
+#include <numeric>
 
 _LIBSYCL_BEGIN_NAMESPACE_SYCL
 
@@ -89,7 +90,7 @@ public:
   void **getArgumentsArray() {
     if (MPtrs.size() != MArgs.size()) {
       MPtrs.clear();
-      MPtrs.resize(MArgs.size());
+      MPtrs.reserve(MArgs.size());
       auto it = MArgs.cbegin();
       while (it != MArgs.cend()) {
         MPtrs.push_back((*it++)->getPtr());
@@ -101,7 +102,7 @@ public:
   int64_t *getSizesArray() {
     if (MSizes.size() != MArgs.size()) {
       MSizes.clear();
-      MSizes.resize(MArgs.size());
+      MSizes.reserve(MArgs.size());
       auto it = MArgs.cbegin();
       while (it != MArgs.cend()) {
         MSizes.push_back(static_cast<int64_t>((*it++)->getSize()));
@@ -111,6 +112,11 @@ public:
   }
 
   size_t getArgumentCount() { return MArgs.size(); }
+
+  size_t getArgumentsSize() {
+    std::ignore = getSizesArray();
+    return std::accumulate(MSizes.begin(), MSizes.end(), 0);
+  }
 
   void deepCopy() {
     for (auto &Arg : MArgs)

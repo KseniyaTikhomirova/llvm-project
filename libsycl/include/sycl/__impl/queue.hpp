@@ -265,13 +265,8 @@ private:
   // #endif // SYCL_LANGUAGE_VERSION
 
   template <typename KernelName, typename KernelType>
-  // check if ifdef here can be removed
-  // check if it is even needed
-  // #ifdef __SYCL_DEVICE_ONLY__
-  //   [[__sycl_detail__::add_ir_attributes_function("sycl-single-task")]]
-  // #endif
-  _LIBSYCL_ENTRY_POINT_ATTR__(KernelName) void kernel_single_task(
-      const KernelType &KernelFunc) {
+  _LIBSYCL_ENTRY_POINT_ATTR__(KernelName)
+  void kernel_single_task(const KernelType &KernelFunc) {
     KernelFunc();
   }
 

@@ -79,7 +79,7 @@ void QueueImpl::submitKernelImpl(const char *KernelName,
   Props[1] = OL_KERNEL_LAUNCH_PROP_END;
   auto Result = olLaunchKernel(MOffloadQueue, MDevice.getHandle(), Kernel,
                                TypelessArgs.getArgumentsArray(),
-                               TypelessArgs.getArgumentCount() * sizeof(void *),
+                               TypelessArgs.getArgumentsSize(),
                                &MCurrentSubmitInfo.Range, Props);
   // clean up current kernel submit data to prepare structures for next
   // submission.
