@@ -174,6 +174,12 @@ struct CUDAKernelTy : public GenericKernelTy {
     return MaxBlockSize;
   }
 
+  /// Get maximum cooperative group count
+  Expected<uint32_t>
+  getMaxCooperativeGroupCount(GenericDeviceTy &GenericDevice, uint32_t WorkDim,
+                              const size_t *LocalWorkSize,
+                              size_t DynamicSharedMemorySize) const override;
+
 private:
   /// Initialize the size of the arguments.
   Error initArgsSize() {
@@ -1119,7 +1125,7 @@ struct CUDADeviceTy : public GenericDeviceTy {
 
     Res = getDeviceAttrRaw(CU_DEVICE_ATTRIBUTE_GPU_OVERLAP, TmpInt);
     if (Res == CUDA_SUCCESS)
-      Info.add("Concurrent Copy and Execution", (bool)TmpInt);
+      Info.add("Concurrent Copy and Execution", bool(TmpInt));
 
     Res = getDeviceAttrRaw(CU_DEVICE_ATTRIBUTE_TOTAL_CONSTANT_MEMORY, TmpInt);
     if (Res == CUDA_SUCCESS)
@@ -1185,15 +1191,15 @@ struct CUDADeviceTy : public GenericDeviceTy {
 
     Res = getDeviceAttrRaw(CU_DEVICE_ATTRIBUTE_KERNEL_EXEC_TIMEOUT, TmpInt);
     if (Res == CUDA_SUCCESS)
-      Info.add("Execution Timeout", (bool)TmpInt);
+      Info.add("Execution Timeout", bool(TmpInt));
 
     Res = getDeviceAttrRaw(CU_DEVICE_ATTRIBUTE_INTEGRATED, TmpInt);
     if (Res == CUDA_SUCCESS)
-      Info.add("Integrated Device", (bool)TmpInt);
+      Info.add("Integrated Device", bool(TmpInt));
 
     Res = getDeviceAttrRaw(CU_DEVICE_ATTRIBUTE_CAN_MAP_HOST_MEMORY, TmpInt);
     if (Res == CUDA_SUCCESS)
-      Info.add("Can Map Host Memory", (bool)TmpInt);
+      Info.add("Can Map Host Memory", bool(TmpInt));
 
     Res = getDeviceAttrRaw(CU_DEVICE_ATTRIBUTE_COMPUTE_MODE, TmpInt);
     if (Res == CUDA_SUCCESS) {
@@ -1210,11 +1216,11 @@ struct CUDADeviceTy : public GenericDeviceTy {
 
     Res = getDeviceAttrRaw(CU_DEVICE_ATTRIBUTE_CONCURRENT_KERNELS, TmpInt);
     if (Res == CUDA_SUCCESS)
-      Info.add("Concurrent Kernels", (bool)TmpInt);
+      Info.add("Concurrent Kernels", bool(TmpInt));
 
     Res = getDeviceAttrRaw(CU_DEVICE_ATTRIBUTE_ECC_ENABLED, TmpInt);
     if (Res == CUDA_SUCCESS)
-      Info.add("ECC Enabled", (bool)TmpInt);
+      Info.add("ECC Enabled", bool(TmpInt));
 
     Res = getDeviceAttrRaw(CU_DEVICE_ATTRIBUTE_MEMORY_CLOCK_RATE, TmpInt);
     if (Res == CUDA_SUCCESS)
@@ -1240,29 +1246,30 @@ struct CUDADeviceTy : public GenericDeviceTy {
 
     Res = getDeviceAttrRaw(CU_DEVICE_ATTRIBUTE_UNIFIED_ADDRESSING, TmpInt);
     if (Res == CUDA_SUCCESS)
-      Info.add("Unified Addressing", (bool)TmpInt);
+      Info.add("Unified Addressing", bool(TmpInt));
 
     Res = getDeviceAttrRaw(CU_DEVICE_ATTRIBUTE_MANAGED_MEMORY, TmpInt);
     if (Res == CUDA_SUCCESS)
-      Info.add("Managed Memory", (bool)TmpInt);
+      Info.add("Managed Memory", bool(TmpInt));
 
     Res =
         getDeviceAttrRaw(CU_DEVICE_ATTRIBUTE_CONCURRENT_MANAGED_ACCESS, TmpInt);
     if (Res == CUDA_SUCCESS)
-      Info.add("Concurrent Managed Memory", (bool)TmpInt);
+      Info.add("Concurrent Managed Memory", bool(TmpInt));
 
     Res = getDeviceAttrRaw(CU_DEVICE_ATTRIBUTE_COMPUTE_PREEMPTION_SUPPORTED,
                            TmpInt);
     if (Res == CUDA_SUCCESS)
-      Info.add("Preemption Supported", (bool)TmpInt);
+      Info.add("Preemption Supported", bool(TmpInt));
 
     Res = getDeviceAttrRaw(CU_DEVICE_ATTRIBUTE_COOPERATIVE_LAUNCH, TmpInt);
     if (Res == CUDA_SUCCESS)
-      Info.add("Cooperative Launch", (bool)TmpInt);
+      Info.add("Cooperative Launch", bool(TmpInt), "",
+               DeviceInfo::COOPERATIVE_LAUNCH_SUPPORT);
 
     Res = getDeviceAttrRaw(CU_DEVICE_ATTRIBUTE_MULTI_GPU_BOARD, TmpInt);
     if (Res == CUDA_SUCCESS)
-      Info.add("Multi-Device Boars", (bool)TmpInt);
+      Info.add("Multi-Device Boars", bool(TmpInt));
 
     Info.add("Compute Capabilities", ComputeCapability.str());
 
@@ -1495,9 +1502,31 @@ Error CUDAKernelTy::launchImpl(GenericDeviceTy &GenericDevice,
     MaxDynCGroupMemLimit = MaxDynCGroupMem;
   }
 
-  CUresult Res = cuLaunchKernel(Func, NumBlocks[0], NumBlocks[1], NumBlocks[2],
-                                NumThreads[0], NumThreads[1], NumThreads[2],
-                                MaxDynCGroupMem, Stream, nullptr, Config);
+  // Validate cooperative launch requirements if needed
+  if (KernelArgs.Flags.Cooperative) {
+    CUDADeviceTy &CUDADevice = static_cast<CUDADeviceTy &>(GenericDevice);
+
+    uint32_t SupportsCooperative = 0;
+    if (auto Err = CUDADevice.getDeviceAttr(
+            CU_DEVICE_ATTRIBUTE_COOPERATIVE_LAUNCH, SupportsCooperative))
+      return Err;
+
+    if (!SupportsCooperative)
+      return Plugin::error(ErrorCode::UNSUPPORTED,
+                           "Device does not support cooperative launch");
+  }
+
+  CUlaunchAttribute CoopAttr = {
+      CU_LAUNCH_ATTRIBUTE_COOPERATIVE,
+      {.cooperative = KernelArgs.Flags.Cooperative ? 1 : 0}};
+
+  CUlaunchConfig LaunchConfig = {NumBlocks[0],    NumBlocks[1],
+                                 NumBlocks[2],    NumThreads[0],
+                                 NumThreads[1],   NumThreads[2],
+                                 MaxDynCGroupMem, Stream,
+                                 &CoopAttr,       1};
+
+  CUresult Res = cuLaunchKernelEx(&LaunchConfig, Func, nullptr, Config);
 
   // Register a callback to indicate when the kernel is complete.
   if (GenericDevice.getRPCServer())
@@ -1509,7 +1538,73 @@ Error CUDAKernelTy::launchImpl(GenericDeviceTy &GenericDevice,
         },
         &GenericDevice.Plugin);
 
-  return Plugin::check(Res, "error in cuLaunchKernel for '%s': %s", getName());
+  return Plugin::check(Res, "error in cuLaunchKernelEx for '%s': %s",
+                       getName());
+}
+
+Expected<uint32_t> CUDAKernelTy::getMaxCooperativeGroupCount(
+    GenericDeviceTy &GenericDevice, uint32_t WorkDim,
+    const size_t *LocalWorkSize, size_t DynamicSharedMemorySize) const {
+  CUDADeviceTy &CUDADevice = static_cast<CUDADeviceTy &>(GenericDevice);
+
+  uint32_t SupportsCooperative = 0;
+  if (auto Err = CUDADevice.getDeviceAttr(
+          CU_DEVICE_ATTRIBUTE_COOPERATIVE_LAUNCH, SupportsCooperative))
+    return Err;
+
+  if (!SupportsCooperative) {
+    return Plugin::error(ErrorCode::UNSUPPORTED,
+                         "Device does not support cooperative launch");
+  }
+
+  // Calculate total local work size
+  size_t LocalWorkSizeTotal = LocalWorkSize[0];
+  LocalWorkSizeTotal *= (WorkDim >= 2 ? LocalWorkSize[1] : 1);
+  LocalWorkSizeTotal *= (WorkDim == 3 ? LocalWorkSize[2] : 1);
+
+  // Query max active blocks per multiprocessor
+  int MaxNumActiveGroupsPerCU = 0;
+  CUresult Res = cuOccupancyMaxActiveBlocksPerMultiprocessor(
+      &MaxNumActiveGroupsPerCU, Func, LocalWorkSizeTotal,
+      DynamicSharedMemorySize);
+  if (auto Err = Plugin::check(
+          Res, "error in cuOccupancyMaxActiveBlocksPerMultiprocessor: %s"))
+    return Err;
+
+  assert(MaxNumActiveGroupsPerCU >= 0);
+
+  // Handle the case where we can't have all SMs active with at least 1 group
+  // per SM. In that case, the device is still able to run 1 work-group, hence
+  // we will manually check if it is possible with the available HW resources.
+  if (MaxNumActiveGroupsPerCU == 0) {
+    // Get max threads per block for this kernel
+    int MaxThreads;
+    Res = cuFuncGetAttribute(&MaxThreads,
+                             CU_FUNC_ATTRIBUTE_MAX_THREADS_PER_BLOCK, Func);
+    if (auto Err = Plugin::check(Res, "error in cuFuncGetAttribute: %s"))
+      return Err;
+
+    // Get max shared memory per block
+    uint32_t MaxSharedMem;
+    if (auto Err = CUDADevice.getDeviceAttr(
+            CU_DEVICE_ATTRIBUTE_MAX_SHARED_MEMORY_PER_BLOCK, MaxSharedMem))
+      return Err;
+
+    // Check if we can launch at least 1 work-group
+    if (LocalWorkSizeTotal > static_cast<size_t>(MaxThreads) ||
+        DynamicSharedMemorySize > MaxSharedMem) {
+      return 0u;
+    }
+    return 1u;
+  }
+
+  // Multiply by the number of multiprocessors (compute units) on the device
+  uint32_t NumMultiprocessors = 0;
+  if (auto Err = CUDADevice.getDeviceAttr(
+          CU_DEVICE_ATTRIBUTE_MULTIPROCESSOR_COUNT, NumMultiprocessors))
+    return Err;
+
+  return NumMultiprocessors * MaxNumActiveGroupsPerCU;
 }
 
 /// Class implementing the CUDA-specific functionalities of the global handler.

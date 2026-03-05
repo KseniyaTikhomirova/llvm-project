@@ -295,6 +295,31 @@ static inline void *CU_LAUNCH_PARAM_BUFFER_SIZE = (void *)0x02;
 typedef void (*CUstreamCallback)(CUstream, CUresult, void *);
 typedef size_t (*CUoccupancyB2DSize)(int);
 
+// Launch configuration structures for cuLaunchKernelEx
+typedef enum CUlaunchAttributeID_enum {
+  CU_LAUNCH_ATTRIBUTE_COOPERATIVE = 2,
+} CUlaunchAttributeID;
+
+typedef struct CUlaunchAttribute_st {
+  CUlaunchAttributeID id;
+  union {
+    int cooperative;
+  } value;
+} CUlaunchAttribute;
+
+typedef struct CUlaunchConfig_st {
+  unsigned int gridDimX;
+  unsigned int gridDimY;
+  unsigned int gridDimZ;
+  unsigned int blockDimX;
+  unsigned int blockDimY;
+  unsigned int blockDimZ;
+  unsigned int sharedMemBytes;
+  CUstream hStream;
+  CUlaunchAttribute *attrs;
+  unsigned int numAttrs;
+} CUlaunchConfig;
+
 CUresult cuCtxGetDevice(CUdevice *);
 CUresult cuDeviceGet(CUdevice *, int);
 CUresult cuDeviceGetAttribute(int *, CUdevice_attribute, CUdevice);
@@ -310,9 +335,7 @@ CUresult cuDriverGetVersion(int *);
 
 CUresult cuGetErrorString(CUresult, const char **);
 CUresult cuInit(unsigned);
-CUresult cuLaunchKernel(CUfunction, unsigned, unsigned, unsigned, unsigned,
-                        unsigned, unsigned, unsigned, CUstream, void **,
-                        void **);
+CUresult cuLaunchKernelEx(const CUlaunchConfig *, CUfunction, void **, void **);
 CUresult cuLaunchHostFunc(CUstream, CUhostFn, void *);
 
 CUresult cuMemAlloc(CUdeviceptr *, size_t);
@@ -390,6 +413,8 @@ CUresult cuMemGetAllocationGranularity(size_t *granularity,
                                        CUmemAllocationGranularity_flags option);
 CUresult cuOccupancyMaxPotentialBlockSize(int *, int *, CUfunction,
                                           CUoccupancyB2DSize, size_t, int);
+CUresult cuOccupancyMaxActiveBlocksPerMultiprocessor(int *, CUfunction, int,
+                                                     size_t);
 CUresult cuFuncGetParamInfo(CUfunction, size_t, size_t *, size_t *);
 
 #endif
