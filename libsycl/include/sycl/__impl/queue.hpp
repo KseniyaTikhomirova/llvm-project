@@ -270,7 +270,7 @@ private:
 
   template <typename KernelName, typename KernelType>
   _LIBSYCL_ENTRY_POINT_ATTR__(KernelName)
-  void kernel_single_task(const KernelType &KernelFunc) {
+  void kernel_single_task(const KernelType KernelFunc) {
     KernelFunc();
   }
 

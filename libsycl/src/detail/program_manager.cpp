@@ -115,8 +115,26 @@ checkFatBinVersion(const __sycl_tgt_bin_desc *const FatbinDesc) {
   return FatbinDesc->Version == LIBSYCL_SUPPORTED_OFFLOAD_BINARY_VERSION;
 }
 
+static void dumpImage(const __sycl_tgt_device_image &RawImg) {
+  std::string Fname("sycl_");
+  Fname += RawImg.TripleString;
+  std::string Ext;
+  Ext = ".spv";
+  Fname += Ext;
+
+  std::ofstream F(Fname, std::ios::binary);
+
+  if (!F.is_open()) {
+    throw exception(make_error_code(errc::runtime), "Can not write " + Fname);
+  }
+  F.write(reinterpret_cast<const char *>(RawImg.ImageStart),
+          RawImg.ImageEnd - RawImg.ImageStart);
+  F.close();
+}
+
 static inline bool
 checkDeviceImageValidness(const __sycl_tgt_device_image &DeviceImage) {
+  // ProgramManager::dumpImage(DeviceImage);
   return (DeviceImage.Version == 3 /*why*?*/) &&
          (DeviceImage.OffloadKind == OFK_SYCL) &&
          (DeviceImage.ImageFormat == IMG_SPIRV /*what else*/);

@@ -87,7 +87,8 @@ public:
     MArgs.emplace_back(new ArgWrapper(Arg));
   }
 
-  void **getArgumentsArray() {
+  void *getArgumentsArray() {
+	  return MArgs[0]->getPtr();
     if (MPtrs.size() != MArgs.size()) {
       MPtrs.clear();
       MPtrs.reserve(MArgs.size());
@@ -99,7 +100,7 @@ public:
     return MPtrs.data();
   }
 
-  int64_t *getSizesArray() {
+  int64_t *getSizesArray(){
     if (MSizes.size() != MArgs.size()) {
       MSizes.clear();
       MSizes.reserve(MArgs.size());

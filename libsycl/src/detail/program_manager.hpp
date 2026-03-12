@@ -18,6 +18,7 @@
 #include <OffloadAPI.h>
 
 #include <unordered_map>
+#include <fstream>
 #include <vector>
 
 // +++ Entry points referenced by the offload wrapper object {
