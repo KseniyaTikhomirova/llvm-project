@@ -26,6 +26,7 @@
 #include <sycl/__impl/detail/default_async_handler.hpp>
 #include <sycl/__impl/detail/obj_utils.hpp>
 #include <sycl/__impl/detail/unified_range_view.hpp>
+#include <sycl/__impl/detail/kernel_arg_helpers.hpp>
 
 _LIBSYCL_BEGIN_NAMESPACE_SYCL
 
@@ -44,6 +45,45 @@ template <typename F, typename RetT, typename... Args>
 struct checkFuncSignature<F, RetT(Args...)> {
 public:
   static constexpr bool value = std::is_invocable_r<void, F, Args...>::value;
+};
+
+  template <typename RetType, typename Func, typename Arg>
+    static Arg member_ptr_helper(RetType (Func::*)(Arg) const);
+
+    // Non-const version of the above template to match functors whose
+    // 'operator()' is declared w/o the 'const' qualifier.
+    template <typename RetType, typename Func, typename Arg>
+    static Arg member_ptr_helper(RetType (Func::*)(Arg));
+
+    template <typename F, typename SuggestedArgType>
+    decltype(member_ptr_helper(&F::operator())) argument_helper(int);
+
+    template <typename F, typename SuggestedArgType>
+    SuggestedArgType argument_helper(...);
+
+    template <typename F, typename SuggestedArgType>
+    using lambda_arg_type = decltype(argument_helper<F, SuggestedArgType>(0));
+
+    template <typename T> T *declptr() { return static_cast<T *>(nullptr); }
+
+  #if __has_builtin(__type_pack_element)
+template <int N, typename... Ts>
+using nth_type_t = __type_pack_element<N, Ts...>;
+#else
+template <int N, typename T, typename... Ts> struct nth_type {
+  using type = typename nth_type<N - 1, Ts...>::type;
+};
+
+template <typename T, typename... Ts> struct nth_type<0, T, Ts...> {
+  using type = T;
+};
+
+template <int N, typename... Ts>
+using nth_type_t = typename nth_type<N, Ts...>::type;
+#endif
+
+template <int Dims, typename LambdaArgType> struct TransformUserItemType {
+  using type = std::conditional_t<std::is_convertible_v<item<Dims>, LambdaArgType>,  item<Dims>, LambdaArgType>;
 };
 
 } // namespace detail
@@ -205,58 +245,42 @@ public:
     return getLastEvent();
   }
 
-  //   template <typename KernelName, int Dims, typename... Rest>
-  //   event parallel_for(range<Dims> numWorkItems, Rest &&...rest) {
-  //     return parallel_for(numWorkItems, {}, rest...);
-  //   }
+    template <typename KernelName, int Dims, typename... Rest>
+    event parallel_for(range<Dims> numWorkItems, Rest &&...rest) {
+      return parallel_for<KernelName>(numWorkItems, {}, rest...);
+    }
 
-  //   template <typename KernelName, int Dims, typename... Rest>
-  //   event parallel_for(range<Dims> numWorkItems, event depEvent, Rest
-  //   &&...rest) {
-  //     return parallel_for(numWorkItems, {depEvent}, rest...);
-  //   }
+    template <typename KernelName, int Dims, typename... Rest>
+    event parallel_for(range<Dims> numWorkItems, event depEvent, Rest
+    &&...rest) {
+      return parallel_for<KernelName>(numWorkItems, {depEvent}, rest...);
+    }
 
-  //   template <typename RetType, typename Func, typename Arg>
-  //   static Arg member_ptr_helper(RetType (Func::*)(Arg) const);
+    template <typename KernelName, int Dims, typename... Rest>
+    event parallel_for(range<Dims> numWorkItems,
+                       const std::vector<event> &depEvents, Rest &&...rest) {
+      if constexpr (sizeof...(Rest) != 1)
+        throw sycl::exception(errc::feature_not_supported, "Reductions are not supported.");
 
-  //   // Non-const version of the above template to match functors whose
-  //   // 'operator()' is declared w/o the 'const' qualifier.
-  //   template <typename RetType, typename Func, typename Arg>
-  //   static Arg member_ptr_helper(RetType (Func::*)(Arg));
+  #ifndef __SYCL_DEVICE_ONLY__
+      //detail::checkValueRange<Dims>(numWorkItems);
+  #endif
+      setKernelParameters(depEvents, numWorkItems);
 
-  //   template <typename F, typename SuggestedArgType>
-  //   decltype(member_ptr_helper(&F::operator())) argument_helper(int);
+      // If 1D kernel argument is an integral type, convert it to
+    //  sycl::item<1>
+      // If user type is convertible from sycl::item/sycl::nd_item, use
+      // sycl::item/sycl::nd_item to transport item information
+    using KernelType =
+        std::decay_t<detail::nth_type_t<sizeof...(Rest) - 1, Rest...>>;
+    using LambdaArgType = sycl::detail::lambda_arg_type<KernelType, item<Dims>>;
+    using TransformedArgType = std::conditional_t<
+        std::is_integral<LambdaArgType>::value && Dims == 1, item<Dims>,
+        typename detail::TransformUserItemType<Dims, LambdaArgType>::type>;
 
-  //   template <typename F, typename SuggestedArgType>
-  //   SuggestedArgType argument_helper(...);
-
-  //   template <typename F, typename SuggestedArgType>
-  //   using lambda_arg_type = decltype(argument_helper<F,
-  //   SuggestedArgType>(0));
-
-  //   template <typename KernelName, int Dims, typename... Rest>
-  //   event parallel_for(range<Dims> numWorkItems,
-  //                      const std::vector<event> &depEvents, Rest &&...rest) {
-  //     if constexpr (sizeof...(Rest) != 1)
-  //       throw sycl::exception(unsupported, "Reductions are not supported.");
-
-  // #ifndef __SYCL_DEVICE_ONLY__
-  //     detail::checkValueRange<Dims>(Range);
-  // #endif
-  //     setKernelParameters(depEvents, numWorkItems);
-
-  //     using LambdaArgType = sycl::detail::lambda_arg_type<Rest, item<Dims>>;
-  //     // If 1D kernel argument is an integral type, convert it to
-  //     sycl::item<1>
-  //     // If user type is convertible from sycl::item/sycl::nd_item, use
-  //     // sycl::item/sycl::nd_item to transport item information
-  //     using TransformedArgType = std::conditional_t<
-  //         std::is_integral<LambdaArgType>::value && Dims == 1, item<Dims>,
-  //         typename detail::TransformUserItemType<Dims, LambdaArgType>::type>;
-
-  //     kernel_parallel_for<KernelName, TransformedArgType, ... Rest>(rest...);
-  //     return getLastEvent();
-  //   }
+      kernel_parallel_for<KernelName, TransformedArgType, KernelType>(rest...);
+      return getLastEvent();
+    }
 
   void wait();
 
@@ -274,46 +298,14 @@ private:
     KernelFunc();
   }
 
-  // template <int N>
-  // static inline constexpr bool is_valid_dimensions = (N > 0) && (N < 4);
-
-  // template <typename T> T *declptr() { return static_cast<T *>(nullptr); }
-  // template <int Dims> static const id<Dims> getElement(id<Dims> *) {
-  //   static_assert(is_valid_dimensions<Dims>, "invalid dimensions");
-  //   return __spirv::initBuiltInGlobalInvocationId<Dims, id<Dims>>();
-  // }
-
-  // template <int Dims, bool WithOffset>
-  // static std::enable_if_t<WithOffset, const item<Dims, WithOffset>> getItem()
-  // {
-  //   static_assert(is_valid_dimensions<Dims>, "invalid dimensions");
-  //   id<Dims> GlobalId{__spirv::initBuiltInGlobalInvocationId<Dims,
-  //   id<Dims>>()}; range<Dims> GlobalSize{__spirv::initBuiltInGlobalSize<Dims,
-  //   range<Dims>>()}; id<Dims>
-  //   GlobalOffset{__spirv::initBuiltInGlobalOffset<Dims, id<Dims>>()}; return
-  //   createItem<Dims, true>(GlobalSize, GlobalId, GlobalOffset);
-  // }
-
-  // template <int Dims, bool WithOffset>
-  // static std::enable_if_t<!WithOffset, const item<Dims, WithOffset>>
-  // getItem() {
-  //   static_assert(is_valid_dimensions<Dims>, "invalid dimensions");
-  //   id<Dims> GlobalId{__spirv::initBuiltInGlobalInvocationId<Dims,
-  //   id<Dims>>()}; range<Dims> GlobalSize{__spirv::initBuiltInGlobalSize<Dims,
-  //   range<Dims>>()}; return createItem<Dims, false>(GlobalSize, GlobalId);
-  // }
-
-  // template <int Dims, bool WithOffset>
-  // static auto getElement(item<Dims, WithOffset> *)
-  //     -> decltype(getItem<Dims, WithOffset>()) {
-  //   return getItem<Dims, WithOffset>();
-  // }
-
-  // template <typename KernelName, typename ElementType, typename KernelType>
-  // __SYCL_ENTRY_POINT_ATTR__ static void
-  // kernel_parallel_for(const KernelType &KernelFunc) {
-  //   KernelFunc(getElement(detail::declptr<ElementType>()));
-  // }
+  template <typename KernelName, typename ElementType, typename KernelType>
+  _LIBSYCL_ENTRY_POINT_ATTR__(KernelName) void
+  kernel_parallel_for(const KernelType KernelFunc) {
+    #ifdef __SYCL_DEVICE_ONLY__
+    KernelFunc(detail::Builder::getElement(detail::declptr<ElementType>()));
+    #endif
+    (void)KernelFunc;
+  }
 
   template <typename, typename... Args>
   void sycl_kernel_launch(const char *KernelName, Args... args) {

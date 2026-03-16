@@ -82,15 +82,27 @@ public:
   // extend for parallel_for
   static void setKernelLaunchArgs(ol_kernel_launch_size_args_t &ArgsToSet,
                                   const detail::UnifiedRangeView &Range) {
-    ArgsToSet.Dimensions = Range.MDims;
-    // set WG from range
-    ArgsToSet.NumGroups.x = 1;
-    ArgsToSet.NumGroups.y = 1;
-    ArgsToSet.NumGroups.z = 1;
-    ArgsToSet.GroupSize.x = 1;
-    ArgsToSet.GroupSize.y = 1;
-    ArgsToSet.GroupSize.z = 1;
-    ArgsToSet.DynSharedMemory = 0;
+  size_t GlobalSize[3] = {1, 1, 1};
+  for (uint32_t I = 0; I < Range.MDims; I++) {
+    GlobalSize[I] = Range.MGlobalSize[I];
+  }
+
+  size_t GroupSize[3] = {1, 1, 1};
+  if (Range.MLocalSize) {
+    for (uint32_t I = 0; I < Range.MDims; I++) {
+      GroupSize[I] = Range.MLocalSize[I];
+    }
+  }
+
+  ol_kernel_launch_size_args_t LaunchArgs;
+  LaunchArgs.Dimensions = Range.MDims;
+  LaunchArgs.NumGroups.x = GlobalSize[0] / GroupSize[0];
+  LaunchArgs.NumGroups.y = GlobalSize[1] / GroupSize[1];
+  LaunchArgs.NumGroups.z = GlobalSize[2] / GroupSize[2];
+  LaunchArgs.GroupSize.x = GroupSize[0];
+  LaunchArgs.GroupSize.y = GroupSize[1];
+  LaunchArgs.GroupSize.z = GroupSize[2];
+  LaunchArgs.DynSharedMemory = 0;
   }
 
   // used for demonstration only. Without accessor and host task there is no

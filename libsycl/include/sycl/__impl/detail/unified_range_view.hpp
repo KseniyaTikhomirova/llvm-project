@@ -11,16 +11,9 @@
 #ifndef _LIBSYCL___IMPL_DETAIL_UNIFIED_RANGE_VIEW_HPP
 #define _LIBSYCL___IMPL_DETAIL_UNIFIED_RANGE_VIEW_HPP
 
-#include <sycl/__impl/detail/arg_wrapper.hpp>
-#include <sycl/__impl/detail/config.hpp>
-#include <sycl/__impl/detail/default_async_handler.hpp>
-#include <sycl/__impl/detail/obj_utils.hpp>
-
-#include <sycl/__impl/async_handler.hpp>
-#include <sycl/__impl/device.hpp>
-#include <sycl/__impl/event.hpp>
 #include <sycl/__impl/index_space_classes.hpp>
-#include <sycl/__impl/property_list.hpp>
+
+#include <sycl/__impl/detail/config.hpp>
 
 _LIBSYCL_BEGIN_NAMESPACE_SYCL
 

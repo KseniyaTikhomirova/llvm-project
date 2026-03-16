@@ -14,6 +14,8 @@
 _LIBSYCL_BEGIN_NAMESPACE_SYCL
 
 namespace detail {
+
+  class Builder;
 template <int Dimensions = 1> class RawArray {
   static_assert(Dimensions >= 1 && Dimensions <= 3,
                 "RawArray can only be 1, 2, or 3 Dimensional.");
@@ -330,6 +332,8 @@ private:
   range<Dimensions> MRange;
   id<Dimensions> MId;
   id<Dimensions> MOffset;
+
+    friend class detail::Builder;
 };
 
 _LIBSYCL_END_NAMESPACE_SYCL
