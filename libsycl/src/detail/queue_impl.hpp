@@ -83,8 +83,10 @@ public:
   static void setKernelLaunchArgs(ol_kernel_launch_size_args_t &ArgsToSet,
                                   const detail::UnifiedRangeView &Range) {
   size_t GlobalSize[3] = {1, 1, 1};
-  for (uint32_t I = 0; I < Range.MDims; I++) {
-    GlobalSize[I] = Range.MGlobalSize[I];
+  if (Range.MGlobalSize) {
+    for (uint32_t I = 0; I < Range.MDims; I++) {
+      GlobalSize[I] = Range.MGlobalSize[I];
+    }
   }
 
   size_t GroupSize[3] = {1, 1, 1};

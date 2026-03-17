@@ -39,24 +39,21 @@ public:
   // Results in undefined behavior if dimension is not in the range [0,
   // Dimensions).
   std::size_t get(int Dimension) const noexcept {
-    assert(Dimension >= 0 && Dimension < Dimensions &&
-           "Dimention is out of range.");
+    // check
     return MArray[Dimension];
   }
 
   // Results in undefined behavior if dimension is not in the range [0,
   // Dimensions).
   std::size_t &operator[](int Dimension) noexcept {
-    assert(Dimension >= 0 && Dimension < Dimensions &&
-           "Dimention is out of range.");
+    // check
     return MArray[Dimension];
   }
 
   // Results in undefined behavior if dimension is not in the range [0,
   // Dimensions).
   std::size_t operator[](int Dimension) const noexcept {
-    assert(Dimension >= 0 && Dimension < Dimensions &&
-           "Dimention is out of range.");
+    // check
     return MArray[Dimension];
   }
 
@@ -131,7 +128,7 @@ specialization where: Dimensions==1 */
   std::size_t size() const noexcept {
     std::size_t size = 1;
     for (int i = 0; i < Dimensions; ++i) {
-      size *= Base::MArray[i];
+      size *= this->MArray[i];
     }
     return size;
   }
@@ -218,7 +215,7 @@ public:
   //   conversion:
   //   int a = id<1>(value);
   operator EnableIfT<(Dimensions == 1), std::size_t>() const noexcept {
-    return Base::get(0);
+    return this->MArray(0);
   }
 
   // Operators
@@ -262,9 +259,7 @@ public:
   id<Dimensions> get_id() const noexcept { return MId; }
 
   // toadd everywhere  __builtin_assume
-  std::size_t get_id(int dimension) const noexcept {
-    return MId.get(dimension);
-  }
+  std::size_t get_id(int dimension) const noexcept { return MId[dimension]; }
 
   std::size_t operator[](int dimension) const noexcept {
     return MId[dimension];
@@ -298,7 +293,7 @@ public:
   std::size_t get_linear_id() const noexcept {
     if constexpr (WithOffset) {
       if constexpr (1 == Dimensions) {
-        return MId;
+        return MId[0] - MOffset[0];
       }
       if constexpr (2 == Dimensions) {
         return (MId[0] - MOffset[0]) * MRange[1] + (MId[1] - MOffset[1]);
