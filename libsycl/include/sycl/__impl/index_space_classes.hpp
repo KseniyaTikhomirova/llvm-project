@@ -93,6 +93,8 @@ class range : public detail::RawArray<Dimensions> {
   static_assert(Dimensions >= 1 && Dimensions <= 3,
                 "range can only be 1, 2, or 3 Dimensional.");
   using Base = detail::RawArray<Dimensions>;
+  template <typename N, typename T>
+  using IntegralType = std::enable_if_t<std::is_integral_v<N>, T>;
 
 public:
   static constexpr int dimensions = Dimensions;
@@ -134,6 +136,153 @@ specialization where: Dimensions==1 */
   }
 
   // Operators
+  // OP is: +, -, *, /, %, <<, >>, &, |, ^, &&, ||, <, >, <=, >=
+#define __SYCL_GEN_OPT_BASE(op)                                                \
+  friend range<Dimensions> operator op(const range<Dimensions> &lhs,           \
+                                       const range<Dimensions> &rhs) {         \
+    range<Dimensions> result(lhs);                                             \
+    for (int i = 0; i < Dimensions; ++i) {                                     \
+      result.MArray[i] = lhs.MArray[i] op rhs.MArray[i];                       \
+    }                                                                          \
+    return result;                                                             \
+  }
+
+#ifndef __SYCL_DISABLE_ID_TO_INT_CONV__
+  // Enable operators with integral types only
+#  define __SYCL_GEN_OPT(op)                                                   \
+    __SYCL_GEN_OPT_BASE(op)                                                    \
+    template <typename T>                                                      \
+    friend IntegralType<T, range<Dimensions>> operator op(                     \
+        const range<Dimensions> &lhs, const T &rhs) {                          \
+      range<Dimensions> result(lhs);                                           \
+      for (int i = 0; i < Dimensions; ++i) {                                   \
+        result.MArray[i] = lhs.MArray[i] op rhs;                               \
+      }                                                                        \
+      return result;                                                           \
+    }                                                                          \
+    template <typename T>                                                      \
+    friend IntegralType<T, range<Dimensions>> operator op(                     \
+        const T &lhs, const range<Dimensions> &rhs) {                          \
+      range<Dimensions> result(rhs);                                           \
+      for (int i = 0; i < Dimensions; ++i) {                                   \
+        result.MArray[i] = lhs op rhs.MArray[i];                               \
+      }                                                                        \
+      return result;                                                           \
+    }
+#else
+#  define __SYCL_GEN_OPT(op)                                                   \
+    __SYCL_GEN_OPT_BASE(op)                                                    \
+    friend range<Dimensions> operator op(const range<Dimensions> &lhs,         \
+                                         const size_t &rhs) {                  \
+      range<Dimensions> result(lhs);                                           \
+      for (int i = 0; i < Dimensions; ++i) {                                   \
+        result.MArray[i] = lhs.MArray[i] op rhs;                               \
+      }                                                                        \
+      return result;                                                           \
+    }                                                                          \
+    friend range<Dimensions> operator op(const size_t &lhs,                    \
+                                         const range<Dimensions> &rhs) {       \
+      range<Dimensions> result(rhs);                                           \
+      for (int i = 0; i < Dimensions; ++i) {                                   \
+        result.MArray[i] = lhs op rhs.MArray[i];                               \
+      }                                                                        \
+      return result;                                                           \
+    }
+#endif // __SYCL_DISABLE_ID_TO_INT_CONV__
+
+  __SYCL_GEN_OPT(+)
+  __SYCL_GEN_OPT(-)
+  __SYCL_GEN_OPT(*)
+  __SYCL_GEN_OPT(/)
+  __SYCL_GEN_OPT(%)
+  __SYCL_GEN_OPT(<<)
+  __SYCL_GEN_OPT(>>)
+  __SYCL_GEN_OPT(&)
+  __SYCL_GEN_OPT(|)
+  __SYCL_GEN_OPT(^)
+  __SYCL_GEN_OPT(&&)
+  __SYCL_GEN_OPT(||)
+  __SYCL_GEN_OPT(<)
+  __SYCL_GEN_OPT(>)
+  __SYCL_GEN_OPT(<=)
+  __SYCL_GEN_OPT(>=)
+
+#undef __SYCL_GEN_OPT
+#undef __SYCL_GEN_OPT_BASE
+
+// OP is: +=, -=, *=, /=, %=, <<=, >>=, &=, |=, ^=
+#define __SYCL_GEN_OPT(op)                                                     \
+  friend range<Dimensions> &operator op(range<Dimensions> &lhs,                \
+                                        const range<Dimensions> &rhs) {        \
+    for (int i = 0; i < Dimensions; ++i) {                                     \
+      lhs.MArray[i] op rhs[i];                                                 \
+    }                                                                          \
+    return lhs;                                                                \
+  }                                                                            \
+  friend range<Dimensions> &operator op(range<Dimensions> &lhs,                \
+                                        const size_t &rhs) {                   \
+    for (int i = 0; i < Dimensions; ++i) {                                     \
+      lhs.MArray[i] op rhs;                                                    \
+    }                                                                          \
+    return lhs;                                                                \
+  }
+
+  __SYCL_GEN_OPT(+=)
+  __SYCL_GEN_OPT(-=)
+  __SYCL_GEN_OPT(*=)
+  __SYCL_GEN_OPT(/=)
+  __SYCL_GEN_OPT(%=)
+  __SYCL_GEN_OPT(<<=)
+  __SYCL_GEN_OPT(>>=)
+  __SYCL_GEN_OPT(&=)
+  __SYCL_GEN_OPT(|=)
+  __SYCL_GEN_OPT(^=)
+
+#undef __SYCL_GEN_OPT
+
+// OP is unary +, -
+#define __SYCL_GEN_OPT(op)                                                     \
+  friend range<Dimensions> operator op(const range<Dimensions> &rhs) {         \
+    range<Dimensions> result(rhs);                                             \
+    for (int i = 0; i < Dimensions; ++i) {                                     \
+      result.MArray[i] = (op rhs.MArray[i]);                                   \
+    }                                                                          \
+    return result;                                                             \
+  }
+
+  __SYCL_GEN_OPT(+)
+  __SYCL_GEN_OPT(-)
+
+#undef __SYCL_GEN_OPT
+
+// OP is prefix ++, --
+#define __SYCL_GEN_OPT(op)                                                     \
+  friend range<Dimensions> &operator op(range<Dimensions> &rhs) {              \
+    for (int i = 0; i < Dimensions; ++i) {                                     \
+      op rhs.MArray[i];                                                        \
+    }                                                                          \
+    return rhs;                                                                \
+  }
+
+  __SYCL_GEN_OPT(++)
+  __SYCL_GEN_OPT(--)
+
+#undef __SYCL_GEN_OPT
+
+// OP is postfix ++, --
+#define __SYCL_GEN_OPT(op)                                                     \
+  friend range<Dimensions> operator op(range<Dimensions> &lhs, int) {          \
+    range<Dimensions> old_lhs(lhs);                                            \
+    for (int i = 0; i < Dimensions; ++i) {                                     \
+      op lhs.MArray[i];                                                        \
+    }                                                                          \
+    return old_lhs;                                                            \
+  }
+
+  __SYCL_GEN_OPT(++)
+  __SYCL_GEN_OPT(--)
+
+#undef __SYCL_GEN_OPT
 };
 
 // Deduction guides
@@ -149,7 +298,8 @@ template <int Dimensions = 1> class id : public detail::RawArray<Dimensions> {
   static_assert(Dimensions >= 1 && Dimensions <= 3,
                 "id can only be 1, 2, or 3 Dimensional.");
   using Base = detail::RawArray<Dimensions>;
-
+  template <typename N, typename T>
+  using EnableIfIntegral = std::enable_if_t<std::is_integral_v<N>, T>;
   /* Helper class for conversion operator. Void type is not suitable. User
    * cannot even try to get address of the operator PrivateTag(). User
    * may try to get an address of operator void() and will get the
@@ -215,10 +365,199 @@ public:
   //   conversion:
   //   int a = id<1>(value);
   operator EnableIfT<(Dimensions == 1), std::size_t>() const noexcept {
-    return this->MArray(0);
+    return this->MArray[0];
   }
 
   // Operators
+  // OP is: ==, !=
+#ifndef __SYCL_DISABLE_ID_TO_INT_CONV__
+  // using detail::RawArray<Dimensions>::operator==;
+  // Needed for clang in C++20 mode as the above operator== would be ambigious
+  // between regular/reversed call for "Id == Id" case.
+  bool operator==(const id<Dimensions> &rhs) const {
+    return this->detail::RawArray<Dimensions>::operator==(rhs);
+  }
+#  if __cpp_impl_three_way_comparison < 201907
+  // using detail::RawArray<Dimensions>::operator!=;
+#  endif
+  bool operator!=(const id<Dimensions> &rhs) const {
+    return this->detail::RawArray<Dimensions>::operator!=(rhs);
+  }
+
+  /* Enable operators with integral types.
+   * Template operators take precedence than type conversion. In the case of
+   * non-template operators, ambiguity appears: "id op size_t" may refer
+   * "size_t op size_t" and "id op size_t". In case of template operators it
+   * will be "id op size_t"*/
+#  define __SYCL_GEN_OPT(op)                                                   \
+    template <typename T>                                                      \
+    EnableIfIntegral<T, bool> operator op(const T &rhs) const {                \
+      if (this->MArray[0] != rhs)                                              \
+        return false op true;                                                  \
+      return true op true;                                                     \
+    }                                                                          \
+    template <typename T>                                                      \
+    friend EnableIfIntegral<T, bool> operator op(const T &lhs,                 \
+                                                 const id<Dimensions> &rhs) {  \
+      if (lhs != rhs.MArray[0])                                                \
+        return false op true;                                                  \
+      return true op true;                                                     \
+    }
+
+  __SYCL_GEN_OPT(==)
+  __SYCL_GEN_OPT(!=)
+
+#  undef __SYCL_GEN_OPT
+
+#endif // __SYCL_DISABLE_ID_TO_INT_CONV__
+
+// OP is: +, -, *, /, %, <<, >>, &, |, ^, &&, ||, <, >, <=, >=
+#define __SYCL_GEN_OPT_BASE(op)                                                \
+  friend id<Dimensions> operator op(const id<Dimensions> &lhs,                 \
+                                    const id<Dimensions> &rhs) {               \
+    id<Dimensions> result;                                                     \
+    for (int i = 0; i < Dimensions; ++i) {                                     \
+      result.MArray[i] = lhs.MArray[i] op rhs.MArray[i];                       \
+    }                                                                          \
+    return result;                                                             \
+  }
+
+#ifndef __SYCL_DISABLE_ID_TO_INT_CONV__
+// Enable operators with integral types only
+#  define __SYCL_GEN_OPT(op)                                                   \
+    __SYCL_GEN_OPT_BASE(op)                                                    \
+    template <typename T>                                                      \
+    friend EnableIfIntegral<T, id<Dimensions>> operator op(                    \
+        const id<Dimensions> &lhs, const T &rhs) {                             \
+      id<Dimensions> result;                                                   \
+      for (int i = 0; i < Dimensions; ++i) {                                   \
+        result.MArray[i] = lhs.MArray[i] op rhs;                               \
+      }                                                                        \
+      return result;                                                           \
+    }                                                                          \
+    template <typename T>                                                      \
+    friend EnableIfIntegral<T, id<Dimensions>> operator op(                    \
+        const T &lhs, const id<Dimensions> &rhs) {                             \
+      id<Dimensions> result;                                                   \
+      for (int i = 0; i < Dimensions; ++i) {                                   \
+        result.MArray[i] = lhs op rhs.MArray[i];                               \
+      }                                                                        \
+      return result;                                                           \
+    }
+#else
+#  define __SYCL_GEN_OPT(op)                                                   \
+    __SYCL_GEN_OPT_BASE(op)                                                    \
+    friend id<Dimensions> operator op(const id<Dimensions> &lhs,               \
+                                      const size_t &rhs) {                     \
+      id<Dimensions> result;                                                   \
+      for (int i = 0; i < Dimensions; ++i) {                                   \
+        result.MArray[i] = lhs.MArray[i] op rhs;                               \
+      }                                                                        \
+      return result;                                                           \
+    }                                                                          \
+    friend id<Dimensions> operator op(const size_t &lhs,                       \
+                                      const id<Dimensions> &rhs) {             \
+      id<Dimensions> result;                                                   \
+      for (int i = 0; i < Dimensions; ++i) {                                   \
+        result.MArray[i] = lhs op rhs.MArray[i];                               \
+      }                                                                        \
+      return result;                                                           \
+    }
+#endif // __SYCL_DISABLE_ID_TO_INT_CONV__
+
+  __SYCL_GEN_OPT(+)
+  __SYCL_GEN_OPT(-)
+  __SYCL_GEN_OPT(*)
+  __SYCL_GEN_OPT(/)
+  __SYCL_GEN_OPT(%)
+  __SYCL_GEN_OPT(<<)
+  __SYCL_GEN_OPT(>>)
+  __SYCL_GEN_OPT(&)
+  __SYCL_GEN_OPT(|)
+  __SYCL_GEN_OPT(^)
+  __SYCL_GEN_OPT(&&)
+  __SYCL_GEN_OPT(||)
+  __SYCL_GEN_OPT(<)
+  __SYCL_GEN_OPT(>)
+  __SYCL_GEN_OPT(<=)
+  __SYCL_GEN_OPT(>=)
+
+#undef __SYCL_GEN_OPT
+#undef __SYCL_GEN_OPT_BASE
+
+// OP is: +=, -=, *=, /=, %=, <<=, >>=, &=, |=, ^=
+#define __SYCL_GEN_OPT(op)                                                     \
+  friend id<Dimensions> &operator op(id<Dimensions> &lhs,                      \
+                                     const id<Dimensions> &rhs) {              \
+    for (int i = 0; i < Dimensions; ++i) {                                     \
+      lhs.MArray[i] op rhs.MArray[i];                                          \
+    }                                                                          \
+    return lhs;                                                                \
+  }                                                                            \
+  friend id<Dimensions> &operator op(id<Dimensions> &lhs, const size_t &rhs) { \
+    for (int i = 0; i < Dimensions; ++i) {                                     \
+      lhs.MArray[i] op rhs;                                                    \
+    }                                                                          \
+    return lhs;                                                                \
+  }
+
+  __SYCL_GEN_OPT(+=)
+  __SYCL_GEN_OPT(-=)
+  __SYCL_GEN_OPT(*=)
+  __SYCL_GEN_OPT(/=)
+  __SYCL_GEN_OPT(%=)
+  __SYCL_GEN_OPT(<<=)
+  __SYCL_GEN_OPT(>>=)
+  __SYCL_GEN_OPT(&=)
+  __SYCL_GEN_OPT(|=)
+  __SYCL_GEN_OPT(^=)
+
+#undef __SYCL_GEN_OPT
+
+// OP is unary +, -
+#define __SYCL_GEN_OPT(op)                                                     \
+  friend id<Dimensions> operator op(const id<Dimensions> &rhs) {               \
+    id<Dimensions> result;                                                     \
+    for (int i = 0; i < Dimensions; ++i) {                                     \
+      result.MArray[i] = (op rhs.MArray[i]);                                   \
+    }                                                                          \
+    return result;                                                             \
+  }
+
+  __SYCL_GEN_OPT(+)
+  __SYCL_GEN_OPT(-)
+
+#undef __SYCL_GEN_OPT
+
+// OP is prefix ++, --
+#define __SYCL_GEN_OPT(op)                                                     \
+  friend id<Dimensions> &operator op(id<Dimensions> &rhs) {                    \
+    for (int i = 0; i < Dimensions; ++i) {                                     \
+      op rhs.MArray[i];                                                        \
+    }                                                                          \
+    return rhs;                                                                \
+  }
+
+  __SYCL_GEN_OPT(++)
+  __SYCL_GEN_OPT(--)
+
+#undef __SYCL_GEN_OPT
+
+// OP is postfix ++, --
+#define __SYCL_GEN_OPT(op)                                                     \
+  friend id<Dimensions> operator op(id<Dimensions> &lhs, int) {                \
+    id<Dimensions> old_lhs;                                                    \
+    for (int i = 0; i < Dimensions; ++i) {                                     \
+      old_lhs.MArray[i] = lhs.MArray[i];                                       \
+      op lhs.MArray[i];                                                        \
+    }                                                                          \
+    return old_lhs;                                                            \
+  }
+
+  __SYCL_GEN_OPT(++)
+  __SYCL_GEN_OPT(--)
+
+#undef __SYCL_GEN_OPT
 };
 
 // Deduction guides
