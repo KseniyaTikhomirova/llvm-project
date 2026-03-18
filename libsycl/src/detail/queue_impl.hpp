@@ -96,15 +96,14 @@ public:
     }
   }
 
-  ol_kernel_launch_size_args_t LaunchArgs;
-  LaunchArgs.Dimensions = Range.MDims;
-  LaunchArgs.NumGroups.x = GlobalSize[0] / GroupSize[0];
-  LaunchArgs.NumGroups.y = GlobalSize[1] / GroupSize[1];
-  LaunchArgs.NumGroups.z = GlobalSize[2] / GroupSize[2];
-  LaunchArgs.GroupSize.x = GroupSize[0];
-  LaunchArgs.GroupSize.y = GroupSize[1];
-  LaunchArgs.GroupSize.z = GroupSize[2];
-  LaunchArgs.DynSharedMemory = 0;
+  ArgsToSet.Dimensions = Range.MDims;
+  ArgsToSet.NumGroups.x = GlobalSize[0] / GroupSize[0];
+  ArgsToSet.NumGroups.y = GlobalSize[1] / GroupSize[1];
+  ArgsToSet.NumGroups.z = GlobalSize[2] / GroupSize[2];
+  ArgsToSet.GroupSize.x = GroupSize[0];
+  ArgsToSet.GroupSize.y = GroupSize[1];
+  ArgsToSet.GroupSize.z = GroupSize[2];
+  ArgsToSet.DynSharedMemory = 0;
   }
 
   // used for demonstration only. Without accessor and host task there is no
