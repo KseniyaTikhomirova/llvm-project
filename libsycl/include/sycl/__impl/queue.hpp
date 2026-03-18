@@ -36,16 +36,16 @@ namespace detail {
 class QueueImpl;
 class UnifiedRangeView;
 
-template <typename, typename T> struct checkFuncSignature {
-  static_assert(false,
-                "Second template parameter is required to be of function type");
-};
+// template <typename, typename T> struct checkFuncSignature {
+//   static_assert(false,
+//                 "Second template parameter is required to be of function type");
+// };
 
-template <typename F, typename RetT, typename... Args>
-struct checkFuncSignature<F, RetT(Args...)> {
-public:
-  static constexpr bool value = std::is_invocable_r<void, F, Args...>::value;
-};
+// template <typename F, typename RetT, typename... Args>
+// struct checkFuncSignature<F, RetT(Args...)> {
+// public:
+//   static constexpr bool value = std::is_invocable_r<void, F, Args...>::value;
+// };
 
   template <typename RetType, typename Func, typename Arg>
     static Arg member_ptr_helper(RetType (Func::*)(Arg) const);
@@ -85,6 +85,33 @@ using nth_type_t = typename nth_type<N, Ts...>::type;
 template <int Dims, typename LambdaArgType> struct TransformUserItemType {
   using type = std::conditional_t<std::is_convertible_v<item<Dims>, LambdaArgType>,  item<Dims>, LambdaArgType>;
 };
+
+template <typename, typename T> struct check_fn_signature {
+  static_assert(std::integral_constant<T, false>::value,
+                "Second template parameter is required to be of function type");
+};
+
+template <typename F, typename RetT, typename... Args>
+struct check_fn_signature<F, RetT(Args...)> {
+private:
+  template <typename T>
+  static constexpr auto check(T *) -> typename std::is_same<
+      decltype(std::declval<T>().operator()(std::declval<Args>()...)),
+      RetT>::type;
+
+  template <typename> static constexpr std::false_type check(...);
+
+  using type = decltype(check<F>(0));
+
+public:
+  static constexpr bool value = type::value;
+};
+
+template <typename F, typename... Args>
+static constexpr bool check_kernel_lambda_takes_args() {
+  return check_fn_signature<std::remove_reference_t<F>, void(Args...)>::value;
+}
+
 
 } // namespace detail
 
@@ -235,7 +262,7 @@ public:
   event single_task(const std::vector<event> &depEvents,
                     const KernelType &kernelFunc) {
     static_assert(
-        (detail::checkFuncSignature<std::remove_reference_t<KernelType>,
+        (detail::check_fn_signature<std::remove_reference_t<KernelType>,
                                     void()>::value),
         "sycl::queue::single_task() requires a kernel instead of command "
         "group. ");
@@ -267,11 +294,7 @@ public:
   #endif
       setKernelParameters(depEvents, numWorkItems);
 
-      // If 1D kernel argument is an integral type, convert it to
-    //  sycl::item<1>
-      // If user type is convertible from sycl::item/sycl::nd_item, use
-      // sycl::item/sycl::nd_item to transport item information
-    using KernelType =
+      using KernelType =
         std::decay_t<detail::nth_type_t<sizeof...(Rest) - 1, Rest...>>;
     using LambdaArgType = sycl::detail::lambda_arg_type<KernelType, item<Dims>>;
     using TransformedArgType = std::conditional_t<
