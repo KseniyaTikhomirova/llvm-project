@@ -299,6 +299,11 @@ public:
     return getLastEvent();
   }
 
+      template <typename KernelName = detail::auto_name, typename... Rest>
+    event parallel_for(range<1> numWorkItems, Rest &&...rest) {
+      return parallel_for<KernelName>(numWorkItems, {}, rest...);
+    }
+
     template <typename KernelName = detail::auto_name, int Dims, typename... Rest>
     event parallel_for(range<Dims> numWorkItems, Rest &&...rest) {
       return parallel_for<KernelName>(numWorkItems, {}, rest...);
