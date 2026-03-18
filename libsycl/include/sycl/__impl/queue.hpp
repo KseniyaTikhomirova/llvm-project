@@ -33,6 +33,31 @@ _LIBSYCL_BEGIN_NAMESPACE_SYCL
 class context;
 
 namespace detail {
+class kernel_impl;
+
+/// This class is the default KernelName template parameter type for kernel
+/// invocation APIs such as single_task.
+class auto_name {};
+
+/// Helper struct to get a kernel name type based on given \c Name and \c Type
+/// types: if \c Name is undefined (is a \c auto_name) then \c Type becomes
+/// the \c Name.
+template <typename Name, typename Type> struct get_kernel_name_t {
+  using name = Name;
+};
+
+/// Specialization for the case when \c Name is undefined.
+/// This is only legal with our compiler with the unnamed lambda extension or if
+/// the kernel is a functor object. For the case where \c Type is a lambda
+/// function and unnamed lambdas are disabled, the compiler will issue a
+/// diagnostic.
+template <typename Type> struct get_kernel_name_t<detail::auto_name, Type> {
+  using name = Type;
+};
+
+} // namespace detail
+
+namespace detail {
 class QueueImpl;
 class UnifiedRangeView;
 
@@ -220,12 +245,12 @@ public:
   template <typename Param>
   typename Param::return_type get_backend_info() const;
 
-  template <typename KernelName, typename KernelType>
+  template <typename KernelName = detail::auto_name, typename KernelType>
   event single_task(const KernelType &kernelFunc) {
     return single_task<KernelName, KernelType>({}, kernelFunc);
   }
 
-  template <typename KernelName, typename KernelType>
+  template <typename KernelName = detail::auto_name, typename KernelType>
   event single_task(event depEvent, const KernelType &kernelFunc) {
     return single_task<KernelName, KernelType>({depEvent}, kernelFunc);
   }
@@ -258,7 +283,7 @@ public:
   // thread storage and static thread_local KernelData should be able to perform
   // as expected.
 
-  template <typename KernelName, typename KernelType>
+  template <typename KernelName = detail::auto_name, typename KernelType>
   event single_task(const std::vector<event> &depEvents,
                     const KernelType &kernelFunc) {
     static_assert(
@@ -268,22 +293,24 @@ public:
         "group. ");
 
     setKernelParameters(depEvents);
-    kernel_single_task<KernelName, KernelType>(kernelFunc);
+            using NameT =
+      typename detail::get_kernel_name_t<KernelName, KernelType>::name;
+    kernel_single_task<NameT, KernelType>(kernelFunc);
     return getLastEvent();
   }
 
-    template <typename KernelName, int Dims, typename... Rest>
+    template <typename KernelName = detail::auto_name, int Dims, typename... Rest>
     event parallel_for(range<Dims> numWorkItems, Rest &&...rest) {
       return parallel_for<KernelName>(numWorkItems, {}, rest...);
     }
 
-    template <typename KernelName, int Dims, typename... Rest>
+    template <typename KernelName = detail::auto_name, int Dims, typename... Rest>
     event parallel_for(range<Dims> numWorkItems, event depEvent, Rest
     &&...rest) {
       return parallel_for<KernelName>(numWorkItems, {depEvent}, rest...);
     }
 
-    template <typename KernelName, int Dims, typename... Rest>
+    template <typename KernelName = detail::auto_name, int Dims, typename... Rest>
     event parallel_for(range<Dims> numWorkItems,
                        const std::vector<event> &depEvents, Rest &&...rest) {
       if constexpr (sizeof...(Rest) != 1)
@@ -300,8 +327,9 @@ public:
     using TransformedArgType = std::conditional_t<
         std::is_integral<LambdaArgType>::value && Dims == 1, item<Dims>,
         typename detail::TransformUserItemType<Dims, LambdaArgType>::type>;
-
-      kernel_parallel_for<KernelName, TransformedArgType, KernelType>(rest...);
+              using NameT =
+      typename detail::get_kernel_name_t<KernelName, KernelType>::name;
+      kernel_parallel_for<NameT, TransformedArgType, KernelType>(rest...);
       return getLastEvent();
     }
 
