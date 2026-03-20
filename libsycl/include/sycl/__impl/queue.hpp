@@ -17,10 +17,13 @@
 
 #include <sycl/__impl/async_handler.hpp>
 #include <sycl/__impl/device.hpp>
+#include <sycl/__impl/event.hpp>
 #include <sycl/__impl/property_list.hpp>
 
+#include <sycl/__impl/detail/arg_wrapper.hpp>
 #include <sycl/__impl/detail/config.hpp>
 #include <sycl/__impl/detail/default_async_handler.hpp>
+#include <sycl/__impl/detail/unified_range_view.hpp>
 #include <sycl/__impl/detail/obj_utils.hpp>
 
 _LIBSYCL_BEGIN_NAMESPACE_SYCL
@@ -29,6 +32,28 @@ class context;
 
 namespace detail {
 class QueueImpl;
+
+template <typename, typename T> struct CheckFunctionSignature {
+  static_assert(std::integral_constant<T, false>::value,
+                "Second template parameter is required to be of function type");
+};
+
+template <typename F, typename RetT, typename... Args>
+struct CheckFunctionSignature<F, RetT(Args...)> {
+private:
+  template <typename T>
+  static constexpr auto check(T *) -> typename std::is_same<
+      decltype(std::declval<T>().operator()(std::declval<Args>()...)),
+      RetT>::type;
+
+  template <typename> static constexpr std::false_type check(...);
+
+  using type = decltype(check<F>(0));
+
+public:
+  static constexpr bool value = type::value;
+};
+
 } // namespace detail
 
 // SYCL 2020 4.6.5. Queue class.
@@ -136,7 +161,107 @@ public:
   template <typename Param>
   typename Param::return_type get_backend_info() const;
 
+  /// Defines and invokes a SYCL kernel function as a lambda expression or a named function object type. 
+  ///
+  /// \param kernelFunc is the kernel functor or lambda.
+  /// \return an event that represents the status of the submitted kernel.
+   template <typename KernelName, typename KernelType>
+  event single_task(const KernelType &kernelFunc) {
+    return single_task<KernelName, KernelType>({}, kernelFunc);
+  }
+
+  /// Defines and invokes a SYCL kernel function as a lambda expression or a named function object type. 
+  ///
+  /// \param depEvent is an event that specifies the kernel dependency.
+  /// \param kernelFunc is the kernel functor or lambda.
+  /// \return an event that represents the status of the submitted kernel.
+  template <typename KernelName, typename KernelType>
+  event single_task(event depEvent, const KernelType &kernelFunc) {
+    return single_task<KernelName, KernelType>({depEvent}, kernelFunc);
+  }
+
+  // The approach with void sycl_kernel_launch(pack of arguments) implies that
+  // we can use or copy arguments only during that call. Since it pass only
+  // kernel arguments as parameters and returns void - we have to split setting
+  // of extra kernel data like event dependencies and range and getting result
+  // event from arguments handling and direct kernel submision if it is
+  // possible. Key stages: 1) passing to queue (or handler in future) dependency
+  // events and range (for parallel_for), saving them in queue (copy/move). 2)
+  // wrapping kernel arguments into typeless wrappers (pointer based, initially
+  // no copy) and passing to the queue. Then depending on scenario (without host
+  // tasks and accessors we should be able to submit everything directly)
+  // collection of arguments is converted to preferred liboffload structure (no
+  // copy of objects, copy of pointers) and passed to liboffload or RT does deep
+  // copy of provided arguments (simple copy of pointer of USM and copy of value
+  // for other arguments) to keep them alive till kernel enqueue outside parent
+  // submit call. 3) getting event associated with kernel enqueue. Key notes: 1)
+  // Having these 3 separated calls is not the best solution but the only one
+  // allowing to avoid copy for some scenarios (otherwise we have to do deep
+  // copy always and then do joined kernel submission outside sycl_kernel_launch
+  // scope). 2) submit must be thread-safe. Since we have 3 calls we need to
+  // keep kernel params and resulting event in a per queue + per thread/per
+  // kernel way. To achieve this without copy and joined kernel submission queue
+  // (in future - handler) stores thread_local data for kernel submission.
+  // thread_local can't be used for non-static class members so they are static.
+  // Given: same queue can be used from different threads but thread can't use
+  // different queues at the same moment; that means that we actually need per
+  // thread storage and static thread_local KernelData should be able to perform
+  // as expected.
+
+  /// Defines and invokes a SYCL kernel function as a lambda expression or a named function object type. 
+  ///
+  /// \param depEvents is a collection of events which specify the kernel dependencies.
+  /// \param kernelFunc is the kernel functor or lambda.
+  /// \return an event that represents the status of the submitted kernel.
+  template <typename KernelName, typename KernelType>
+  event single_task(const std::vector<event> &depEvents,
+                    const KernelType &kernelFunc) {
+    static_assert(
+        (detail::CheckFunctionSignature<std::remove_reference_t<KernelType>,
+                                        void()>::value),
+        "sycl::queue::single_task() requires a kernel instead of command "
+        "group. ");
+
+    setKernelParameters(depEvents);
+    submitSingleTask<KernelName, KernelType>(kernelFunc);
+    return getLastEvent();
+  }
+
+  /// Blocks the calling thread until all commands previously submitted to this queue have completed. Synchronous errors are reported through SYCL exceptions.
+  void wait();
+
 private:
+  // Name of this function is defined by compiler. It generates call to this
+  // function in the host implementation of KernelFunc in submitSingleTask.
+  template <typename, typename... Args>
+  void sycl_kernel_launch(const char *KernelName, Args &&...args) {
+    static_assert((sizeof...(args) == 1) &&
+                  "Only 2 arguments are expected in sycl_kernel_launch.");
+    detail::ArgCollection TypelessArgs;
+    (TypelessArgs.addArg(args), ...);
+
+    submitKernelImpl(KernelName, TypelessArgs);
+  }
+
+#ifdef SYCL_LANGUAGE_VERSION
+#  define _LIBSYCL_ENTRY_POINT_ATTR__(KernelName)                              \
+    [[clang::sycl_kernel_entry_point(KernelName)]]
+#else
+#  define _LIBSYCL_ENTRY_POINT_ATTR__(KernelName)
+#endif // SYCL_LANGUAGE_VERSION
+
+  template <typename KernelName, typename KernelType>
+  _LIBSYCL_ENTRY_POINT_ATTR__(KernelName)
+  void submitSingleTask(const KernelType KernelFunc) {
+    KernelFunc();
+  }
+
+  event getLastEvent();
+  void submitKernelImpl(const char *KernelName,
+                        detail::ArgCollection &TypelessArgs);
+  void setKernelParameters(const std::vector<event> &Events,
+                           const detail::UnifiedRangeView &Range = {});
+
   queue(const std::shared_ptr<detail::QueueImpl> &Impl) : impl(Impl) {}
   std::shared_ptr<detail::QueueImpl> impl;
 
