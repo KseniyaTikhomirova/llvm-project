@@ -141,7 +141,6 @@ static bool isImageTargetCompatible(const DeviceImageWrapper &Image,
 DeviceImageWrapper *ProgramManager::getDeviceImage(std::string_view KernelName,
                                                    const kernel_id &KernelID,
                                                    DeviceImpl &Device) {
-  std::lock_guard<std::mutex> Guard(MImageCollectionMutex);
   auto [Begin, End] = MKernelIDToDevImageJIT.equal_range(KernelID);
   if (Begin != End) {
     bool IsValid{};
