@@ -56,6 +56,14 @@
 
 #endif // __SYCL_DEVICE_ONLY__
 
+#ifndef _LIBSYCL_ALWAYS_INLINE
+#  if __has_attribute(always_inline)
+#    define _LIBSYCL_ALWAYS_INLINE __attribute__((always_inline))
+#  else
+#    define _LIBSYCL_ALWAYS_INLINE
+#  endif
+#endif // _LIBSYCL_ALWAYS_INLINE
+
 #if defined(_MSC_VER)
 static_assert(_MSVC_LANG >= 201703L, "Libsycl requires C++17 or later.");
 #else
