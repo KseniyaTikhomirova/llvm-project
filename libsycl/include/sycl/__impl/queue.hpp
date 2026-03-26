@@ -288,8 +288,8 @@ public:
   template <typename KernelName = detail::AutoName, typename... Rest>
   event parallel_for(range<2> numWorkItems, const std::vector<event> &depEvents,
                      Rest &&...rest) {
-    return parallelForImpl(numWorkItems, depEvents,
-                           std::forward<Rest>(rest)...);
+    return parallelForImpl<KernelName>(numWorkItems, depEvents,
+                                       std::forward<Rest>(rest)...);
   }
 
   /// Defines and invokes a SYCL kernel function as a lambda expression or a
@@ -303,8 +303,8 @@ public:
   template <typename KernelName = detail::AutoName, typename... Rest>
   event parallel_for(range<3> numWorkItems, const std::vector<event> &depEvents,
                      Rest &&...rest) {
-    return parallelForImpl(numWorkItems, depEvents,
-                           std::forward<Rest>(rest)...);
+    return parallelForImpl<KernelName>(numWorkItems, depEvents,
+                                       std::forward<Rest>(rest)...);
   }
 
   /// Blocks the calling thread until all commands previously submitted to this
