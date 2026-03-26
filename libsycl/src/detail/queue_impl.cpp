@@ -126,7 +126,7 @@ void QueueImpl::submitKernelImpl(const char *KernelName,
 
   // ol_kernel_launch_prop_t Props[2];
   // Props[0].type = OL_KERNEL_LAUNCH_PROP_TYPE_SIZE;
-  // Props[0].data = TypelessArgs.getSizesArray();
+  // Props[0].data = &ArgumentsSize;
   // Props[1] = OL_KERNEL_LAUNCH_PROP_END;
   auto Result =
       olLaunchKernel(MOffloadQueue, MDevice.getHandle(), Kernel, Arguments,

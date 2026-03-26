@@ -1,6 +1,5 @@
 // REQUIRES: any-device
-// UNSUPPORTED: *
-// RUN: %clangxx %sycl_options  %s -o %t.out
+// RUN: %clangxx -fsycl %s -o %t.out
 // RUN: %t.out
 
 #include <iostream>
