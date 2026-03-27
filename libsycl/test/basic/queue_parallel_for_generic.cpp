@@ -1,4 +1,4 @@
-
+// REQUIRES: any-device
 // RUN: %clangxx -fsycl %s -o %t.out
 // RUN: %t.out
 
@@ -36,7 +36,7 @@ int main() {
   });
 
   // TODO: add kernel with offset and kernel with nd_range once they
-  // areimplemented.
+  // are implemented.
 
   q.wait();
 

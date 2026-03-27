@@ -5,93 +5,98 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
+///
+/// \file
+/// This file contains the declaration of the SYCL 2020 ranges and index space
+/// identifiers (4.9.1.).
+///
+//===----------------------------------------------------------------------===//
 
 #ifndef _LIBSYCL___IMPL_INDEX_SPACE_CLASSES_HPP
 #define _LIBSYCL___IMPL_INDEX_SPACE_CLASSES_HPP
 
 #include <sycl/__impl/detail/config.hpp>
-#include <sycl/__impl/exception.hpp>
 
 _LIBSYCL_BEGIN_NAMESPACE_SYCL
 
-template <int dimensions> class id;
-template <int dimensions> class range;
 namespace detail {
 
-template <int dimensions = 1> class array {
-  static_assert(dimensions >= 1, "Array cannot be 0-dimensional.");
+class Builder;
+
+/// Helper class for dimensions data management.
+template <int Dimensions = 1> class RawArray {
+  static_assert(Dimensions >= 1 && Dimensions <= 3,
+                "RawArray can only be 1, 2, or 3 Dimensional.");
 
 public:
-  /* The following constructor is only available in the array struct
-   * specialization where: dimensions==1 */
-  template <int N = dimensions>
-  array(typename std::enable_if_t<(N == 1), size_t> dim0 = 0)
-      : common_array{dim0} {}
+  /// Constructs one-dimensional instance and assign corresponding data to Dim0
+  /// value. Available only if Dimensions = 1.
+  template <int N = Dimensions, std::enable_if_t<N == 1, bool> = true>
+  RawArray(size_t Dim0 = 0) : MArray{Dim0} {}
 
-  /* The following constructors are only available in the array struct
-   * specialization where: dimensions==2 */
-  template <int N = dimensions>
-  array(typename std::enable_if_t<(N == 2), size_t> dim0, size_t dim1)
-      : common_array{dim0, dim1} {}
+  /// Constructs two-dimensional instance and assign corresponding data.
+  /// Available only if Dimensions = 2.
+  template <int N = Dimensions, std::enable_if_t<N == 2, bool> = true>
+  RawArray(size_t Dim0, size_t Dim1) : MArray{Dim0, Dim1} {}
 
-  template <int N = dimensions, std::enable_if_t<(N == 2), size_t> = 0>
-  array() : array(0, 0) {}
+  /// Constructs two-dimensional instance with zero-initialized corresponding
+  /// data. Available only if Dimensions = 2.
+  template <int N = Dimensions, std::enable_if_t<N == 2, bool> = true>
+  RawArray() : RawArray(0, 0) {}
 
-  /* The following constructors are only available in the array struct
-   * specialization where: dimensions==3 */
-  template <int N = dimensions>
-  array(typename std::enable_if_t<(N == 3), size_t> dim0, size_t dim1,
-        size_t dim2)
-      : common_array{dim0, dim1, dim2} {}
+  /// Constructs three-dimensional instance and assign corresponding data.
+  /// Available only if Dimensions = 3.
+  template <int N = Dimensions, std::enable_if_t<N == 3, bool> = true>
+  RawArray(size_t Dim0, size_t Dim1, size_t Dim2) : MArray{Dim0, Dim1, Dim2} {}
 
-  template <int N = dimensions, std::enable_if_t<(N == 3), size_t> = 0>
-  array() : array(0, 0, 0) {}
+  /// Constructs three-dimensional instance with zero-initialized corresponding
+  /// data. Available only if Dimensions = 3.
+  template <int N = Dimensions, std::enable_if_t<N == 3, bool> = true>
+  RawArray() : RawArray(0, 0, 0) {}
 
-  // Conversion operators to derived classes
-  operator sycl::id<dimensions>() const {
-    sycl::id<dimensions> result;
-    for (int i = 0; i < dimensions; ++i) {
-      result[i] = common_array[i];
-    }
-    return result;
+  /// Returns value for the specified dimension.
+  /// Results in undefined behavior if dimension is not in the range [0,
+  /// Dimensions).
+  /// \param Dimension a dimension to query data for.
+  /// \return value in array matching requested dimension.
+  std::size_t get(int Dimension) const noexcept { return MArray[Dimension]; }
+
+  /// Returns value for the specified dimension.
+  /// Results in undefined behavior if dimension is not in the range [0,
+  /// Dimensions).
+  /// \param Dimension a dimension to query data for.
+  /// \return value in array matching requested dimension.
+  std::size_t &operator[](int Dimension) noexcept { return MArray[Dimension]; }
+
+  /// Returns value for the specified dimension.
+  /// Results in undefined behavior if dimension is not in the range [0,
+  /// Dimensions).
+  /// \param Dimension a dimension to query data for.
+  /// \return value in array matching requested dimension.
+  std::size_t operator[](int Dimension) const noexcept {
+    return MArray[Dimension];
   }
 
-  size_t get(int dimension) const {
-    check_dimension(dimension);
-    return common_array[dimension];
-  }
+  RawArray(const RawArray<Dimensions> &rhs) = default;
+  RawArray(RawArray<Dimensions> &&rhs) = default;
+  RawArray<Dimensions> &operator=(const RawArray<Dimensions> &rhs) = default;
+  RawArray<Dimensions> &operator=(RawArray<Dimensions> &&rhs) = default;
+  ~RawArray() = default;
 
-  size_t &operator[](int dimension) {
-    check_dimension(dimension);
-    return common_array[dimension];
-  }
-
-  size_t operator[](int dimension) const {
-    check_dimension(dimension);
-    return common_array[dimension];
-  }
-
-  array(const array<dimensions> &rhs) = default;
-  array(array<dimensions> &&rhs) = default;
-  array<dimensions> &operator=(const array<dimensions> &rhs) = default;
-  array<dimensions> &operator=(array<dimensions> &&rhs) = default;
-
-  // Returns true iff all elements in 'this' are equal to
-  // the corresponding elements in 'rhs'.
-  bool operator==(const array<dimensions> &rhs) const {
-    for (int i = 0; i < dimensions; ++i) {
-      if (this->common_array[i] != rhs.common_array[i]) {
+  friend bool operator==(const RawArray<Dimensions> &lhs,
+                         const RawArray<Dimensions> &rhs) {
+    for (int i = 0; i < Dimensions; ++i) {
+      if (lhs.MArray[i] != rhs.MArray[i]) {
         return false;
       }
     }
     return true;
   }
 
-  // Returns true iff there is at least one element in 'this'
-  // which is not equal to the corresponding element in 'rhs'.
-  bool operator!=(const array<dimensions> &rhs) const {
-    for (int i = 0; i < dimensions; ++i) {
-      if (this->common_array[i] != rhs.common_array[i]) {
+  friend bool operator!=(const RawArray<Dimensions> &lhs,
+                         const RawArray<Dimensions> &rhs) {
+    for (int i = 0; i < Dimensions; ++i) {
+      if (lhs.MArray[i] != rhs.MArray[i]) {
         return true;
       }
     }
@@ -99,677 +104,308 @@ public:
   }
 
 protected:
-  size_t common_array[dimensions];
-  _LIBSYCL_ALWAYS_INLINE void check_dimension(int dimension) const {
-#ifndef __SYCL_DEVICE_ONLY__
-    if (dimension >= dimensions || dimension < 0) {
-      throw sycl::exception(make_error_code(errc::invalid),
-                            "Index out of range");
-    }
-#endif
-    (void)dimension;
-  }
+  size_t MArray[Dimensions];
 };
-
-class Builder;
-
 } // namespace detail
 
-template <int Dimensions = 1> class range : public detail::array<Dimensions> {
-public:
-  static constexpr int dimensions = Dimensions;
-
-private:
+/// SYCL 2020 4.9.1.1. range class.
+/// range<int Dimensions> is a 1D, 2D or 3D vector that defines the iteration
+/// domain of either a single work-group in a parallel dispatch, or the overall
+/// Dimensions of the dispatch.
+template <int Dimensions = 1>
+class range : public detail::RawArray<Dimensions> {
   static_assert(Dimensions >= 1 && Dimensions <= 3,
                 "range can only be 1, 2, or 3 Dimensional.");
-  using base = detail::array<Dimensions>;
-  template <typename N, typename T>
-  using IntegralType = std::enable_if_t<std::is_integral_v<N>, T>;
+  using Base = detail::RawArray<Dimensions>;
 
 public:
-  /* The following constructor is only available in the range class
-  specialization where: Dimensions==1 */
-  template <int N = Dimensions>
-  range(typename std::enable_if_t<(N == 1), size_t> dim0) : base(dim0) {}
-
-  /* The following constructor is only available in the range class
-  specialization where: Dimensions==2 */
-  template <int N = Dimensions>
-  range(typename std::enable_if_t<(N == 2), size_t> dim0, size_t dim1)
-      : base(dim0, dim1) {}
-
-  /* The following constructor is only available in the range class
-  specialization where: Dimensions==3 */
-  template <int N = Dimensions>
-  range(typename std::enable_if_t<(N == 3), size_t> dim0, size_t dim1,
-        size_t dim2)
-      : base(dim0, dim1, dim2) {}
-
-  size_t size() const {
-    size_t size = 1;
-    for (int i = 0; i < Dimensions; ++i) {
-      size *= this->common_array[i];
-    }
-    return size;
-  }
-
+  static constexpr int dimensions = Dimensions;
+  range() noexcept = default;
   range(const range<Dimensions> &rhs) = default;
   range(range<Dimensions> &&rhs) = default;
   range<Dimensions> &operator=(const range<Dimensions> &rhs) = default;
   range<Dimensions> &operator=(range<Dimensions> &&rhs) = default;
-  range() = default;
 
-// OP is: +, -, *, /, %, <<, >>, &, |, ^, &&, ||, <, >, <=, >=
-#define __SYCL_GEN_OPT_BASE(op)                                                \
-  friend range<Dimensions> operator op(const range<Dimensions> &lhs,           \
-                                       const range<Dimensions> &rhs) {         \
-    range<Dimensions> result(lhs);                                             \
-    for (int i = 0; i < Dimensions; ++i) {                                     \
-      result.common_array[i] = lhs.common_array[i] op rhs.common_array[i];     \
-    }                                                                          \
-    return result;                                                             \
-  }
+  /// Construct a 1D range with value dim0.
+  ///  Only valid when the template parameter Dimensions is equal to 1.
+  template <int N = Dimensions, std::enable_if_t<N == 1, bool> = true>
+  range(std::size_t dim0) noexcept : Base(dim0) {}
 
-#ifndef __SYCL_DISABLE_ID_TO_INT_CONV__
-  // Enable operators with integral types only
-#  define __SYCL_GEN_OPT(op)                                                   \
-    __SYCL_GEN_OPT_BASE(op)                                                    \
-    template <typename T>                                                      \
-    friend IntegralType<T, range<Dimensions>> operator op(                     \
-        const range<Dimensions> &lhs, const T &rhs) {                          \
-      range<Dimensions> result(lhs);                                           \
-      for (int i = 0; i < Dimensions; ++i) {                                   \
-        result.common_array[i] = lhs.common_array[i] op rhs;                   \
-      }                                                                        \
-      return result;                                                           \
-    }                                                                          \
-    template <typename T>                                                      \
-    friend IntegralType<T, range<Dimensions>> operator op(                     \
-        const T &lhs, const range<Dimensions> &rhs) {                          \
-      range<Dimensions> result(rhs);                                           \
-      for (int i = 0; i < Dimensions; ++i) {                                   \
-        result.common_array[i] = lhs op rhs.common_array[i];                   \
-      }                                                                        \
-      return result;                                                           \
+  /// Construct a 2D range with values dim0 and dim1.
+  /// Only valid when the template parameter Dimensions is equal to 2.
+  template <int N = Dimensions, std::enable_if_t<N == 2, bool> = true>
+  range(std::size_t dim0, std::size_t dim1) noexcept : Base(dim0, dim1) {}
+
+  /// Construct a 3D range with values dim0, dim1 and dim2.
+  /// Only valid when the template parameter Dimensions is equal to 3.
+  template <int N = Dimensions, std::enable_if_t<N == 3, bool> = true>
+  range(std::size_t dim0, std::size_t dim1, std::size_t dim2) noexcept
+      : Base(dim0, dim1, dim2) {}
+
+  /*
+  Declared and implemented in detail::RawArray:
+      std::size_t get(int dimension) const noexcept;
+      std::size_t& operator[](int dimension) noexcept;
+      std::size_t operator[](int dimension) const noexcept;
+  */
+
+  /// \return the size of the range computed as dimension0*…​*dimensionN.
+  std::size_t size() const noexcept {
+    std::size_t size = 1;
+    for (int i = 0; i < Dimensions; ++i) {
+      size *= Base::MArray[i];
     }
-#else
-#  define __SYCL_GEN_OPT(op)                                                   \
-    __SYCL_GEN_OPT_BASE(op)                                                    \
-    friend range<Dimensions> operator op(const range<Dimensions> &lhs,         \
-                                         const size_t &rhs) {                  \
-      range<Dimensions> result(lhs);                                           \
-      for (int i = 0; i < Dimensions; ++i) {                                   \
-        result.common_array[i] = lhs.common_array[i] op rhs;                   \
-      }                                                                        \
-      return result;                                                           \
-    }                                                                          \
-    friend range<Dimensions> operator op(const size_t &lhs,                    \
-                                         const range<Dimensions> &rhs) {       \
-      range<Dimensions> result(rhs);                                           \
-      for (int i = 0; i < Dimensions; ++i) {                                   \
-        result.common_array[i] = lhs op rhs.common_array[i];                   \
-      }                                                                        \
-      return result;                                                           \
-    }
-#endif // __SYCL_DISABLE_ID_TO_INT_CONV__
-
-  __SYCL_GEN_OPT(+)
-  __SYCL_GEN_OPT(-)
-  __SYCL_GEN_OPT(*)
-  __SYCL_GEN_OPT(/)
-  __SYCL_GEN_OPT(%)
-  __SYCL_GEN_OPT(<<)
-  __SYCL_GEN_OPT(>>)
-  __SYCL_GEN_OPT(&)
-  __SYCL_GEN_OPT(|)
-  __SYCL_GEN_OPT(^)
-  __SYCL_GEN_OPT(&&)
-  __SYCL_GEN_OPT(||)
-  __SYCL_GEN_OPT(<)
-  __SYCL_GEN_OPT(>)
-  __SYCL_GEN_OPT(<=)
-  __SYCL_GEN_OPT(>=)
-
-#undef __SYCL_GEN_OPT
-#undef __SYCL_GEN_OPT_BASE
-
-// OP is: +=, -=, *=, /=, %=, <<=, >>=, &=, |=, ^=
-#define __SYCL_GEN_OPT(op)                                                     \
-  friend range<Dimensions> &operator op(range<Dimensions> &lhs,                \
-                                        const range<Dimensions> &rhs) {        \
-    for (int i = 0; i < Dimensions; ++i) {                                     \
-      lhs.common_array[i] op rhs[i];                                           \
-    }                                                                          \
-    return lhs;                                                                \
-  }                                                                            \
-  friend range<Dimensions> &operator op(range<Dimensions> &lhs,                \
-                                        const size_t &rhs) {                   \
-    for (int i = 0; i < Dimensions; ++i) {                                     \
-      lhs.common_array[i] op rhs;                                              \
-    }                                                                          \
-    return lhs;                                                                \
+    return size;
   }
 
-  __SYCL_GEN_OPT(+=)
-  __SYCL_GEN_OPT(-=)
-  __SYCL_GEN_OPT(*=)
-  __SYCL_GEN_OPT(/=)
-  __SYCL_GEN_OPT(%=)
-  __SYCL_GEN_OPT(<<=)
-  __SYCL_GEN_OPT(>>=)
-  __SYCL_GEN_OPT(&=)
-  __SYCL_GEN_OPT(|=)
-  __SYCL_GEN_OPT(^=)
-
-#undef __SYCL_GEN_OPT
-
-// OP is unary +, -
-#define __SYCL_GEN_OPT(op)                                                     \
-  friend range<Dimensions> operator op(const range<Dimensions> &rhs) {         \
-    range<Dimensions> result(rhs);                                             \
-    for (int i = 0; i < Dimensions; ++i) {                                     \
-      result.common_array[i] = (op rhs.common_array[i]);                       \
-    }                                                                          \
-    return result;                                                             \
-  }
-
-  __SYCL_GEN_OPT(+)
-  __SYCL_GEN_OPT(-)
-
-#undef __SYCL_GEN_OPT
-
-// OP is prefix ++, --
-#define __SYCL_GEN_OPT(op)                                                     \
-  friend range<Dimensions> &operator op(range<Dimensions> &rhs) {              \
-    for (int i = 0; i < Dimensions; ++i) {                                     \
-      op rhs.common_array[i];                                                  \
-    }                                                                          \
-    return rhs;                                                                \
-  }
-
-  __SYCL_GEN_OPT(++)
-  __SYCL_GEN_OPT(--)
-
-#undef __SYCL_GEN_OPT
-
-// OP is postfix ++, --
-#define __SYCL_GEN_OPT(op)                                                     \
-  friend range<Dimensions> operator op(range<Dimensions> &lhs, int) {          \
-    range<Dimensions> old_lhs(lhs);                                            \
-    for (int i = 0; i < Dimensions; ++i) {                                     \
-      op lhs.common_array[i];                                                  \
-    }                                                                          \
-    return old_lhs;                                                            \
-  }
-
-  __SYCL_GEN_OPT(++)
-  __SYCL_GEN_OPT(--)
-
-#undef __SYCL_GEN_OPT
-
-private:
-  friend class handler;
-  friend class detail::Builder;
-
-  // Adjust the first dim of the range
-  void set_range_dim0(const size_t dim0) { this->common_array[0] = dim0; }
+  // TODO: operators to be added
 };
 
+/// c++ deduction guides.
 #ifdef __cpp_deduction_guides
-range(size_t) -> range<1>;
-range(size_t, size_t) -> range<2>;
-range(size_t, size_t, size_t) -> range<3>;
+range(std::size_t) -> range<1>;
+range(std::size_t, std::size_t) -> range<2>;
+range(std::size_t, std::size_t, std::size_t) -> range<3>;
 #endif
 
-template <int Dimensions, bool with_offset> class item;
+template <int Dimensions = 1, bool WithOffset = true> class item;
 
-template <int Dimensions = 1> class id : public detail::array<Dimensions> {
-public:
-  static constexpr int dimensions = Dimensions;
-
-private:
-  using base = detail::array<Dimensions>;
+/// SYCL 2020 4.9.1.3. id class.
+/// id<int Dimensions> is a vector of Dimensions that is used to represent an id
+/// into a global or local range. It can be used as an index in an accessor of
+/// the same rank.
+template <int Dimensions = 1> class id : public detail::RawArray<Dimensions> {
   static_assert(Dimensions >= 1 && Dimensions <= 3,
                 "id can only be 1, 2, or 3 Dimensional.");
-  template <int N, int val, typename T>
-  using ParamTy = std::enable_if_t<(N == val), T>;
+  using Base = detail::RawArray<Dimensions>;
 
-#ifndef __SYCL_DISABLE_ID_TO_INT_CONV__
-  /* Helper class for conversion operator. Void type is not suitable. User
-   * cannot even try to get address of the operator __private_class(). User
-   * may try to get an address of operator void() and will get the
-   * compile-time error */
-  class __private_class;
+  // Helper class for conversion operator. Void type is not suitable. User
+  // cannot even try to get address of the operator PrivateTag(). User
+  // may try to get an address of operator void() and will get the
+  // compile-time error
+  class PrivateTag;
+  template <bool Condition, typename T>
+  using EnableIfT = std::conditional_t<Condition, T, PrivateTag>;
 
-  template <typename N, typename T>
-  using EnableIfIntegral = std::enable_if_t<std::is_integral_v<N>, T>;
-  template <bool B, typename T>
-  using EnableIfT = std::conditional_t<B, T, __private_class>;
-#endif // __SYCL_DISABLE_ID_TO_INT_CONV__
-
-public:
-  id() = default;
-
-  /* The following constructor is only available in the id struct
-   * specialization where: Dimensions==1 */
-  template <int N = Dimensions> id(ParamTy<N, 1, size_t> dim0) : base(dim0) {}
-
-  template <int N = Dimensions>
-  id(ParamTy<N, 1, const range<Dimensions>> &range_size)
-      : base(range_size.get(0)) {}
-
-  template <int N = Dimensions, bool with_offset = true>
-  id(ParamTy<N, 1, const item<Dimensions, with_offset>> &item)
-      : base(item.get_id(0)) {}
-
-  /* The following constructor is only available in the id struct
-   * specialization where: Dimensions==2 */
-  template <int N = Dimensions>
-  id(ParamTy<N, 2, size_t> dim0, size_t dim1) : base(dim0, dim1) {}
-
-  template <int N = Dimensions>
-  id(ParamTy<N, 2, const range<Dimensions>> &range_size)
-      : base(range_size.get(0), range_size.get(1)) {}
-
-  template <int N = Dimensions, bool with_offset = true>
-  id(ParamTy<N, 2, const item<Dimensions, with_offset>> &item)
-      : base(item.get_id(0), item.get_id(1)) {}
-
-  /* The following constructor is only available in the id struct
-   * specialization where: Dimensions==3 */
-  template <int N = Dimensions>
-  id(ParamTy<N, 3, size_t> dim0, size_t dim1, size_t dim2)
-      : base(dim0, dim1, dim2) {}
-
-  template <int N = Dimensions>
-  id(ParamTy<N, 3, const range<Dimensions>> &range_size)
-      : base(range_size.get(0), range_size.get(1), range_size.get(2)) {}
-
-  template <int N = Dimensions, bool with_offset = true>
-  id(ParamTy<N, 3, const item<Dimensions, with_offset>> &item)
-      : base(item.get_id(0), item.get_id(1), item.get_id(2)) {}
-
-#ifndef __SYCL_DISABLE_ID_TO_INT_CONV__
-  /* Template operator is not allowed because it disables further type
-   * conversion. For example, the next code will not work in case of template
-   * conversion:
-   * int a = id<1>(value); */
-
-  _LIBSYCL_ALWAYS_INLINE operator EnableIfT<(Dimensions == 1), size_t>() const {
-    return this->common_array[0];
-  }
-#endif // __SYCL_DISABLE_ID_TO_INT_CONV__
-
-// OP is: ==, !=
-#ifndef __SYCL_DISABLE_ID_TO_INT_CONV__
-  using detail::array<Dimensions>::operator==;
-  // Needed for clang in C++20 mode as the above operator== would be ambigious
-  // between regular/reversed call for "Id == Id" case.
-  bool operator==(const id<Dimensions> &rhs) const {
-    return this->detail::array<Dimensions>::operator==(rhs);
-  }
-#  if __cpp_impl_three_way_comparison < 201907
-  using detail::array<Dimensions>::operator!=;
-#  endif
-
-  /* Enable operators with integral types.
-   * Template operators take precedence than type conversion. In the case of
-   * non-template operators, ambiguity appears: "id op size_t" may refer
-   * "size_t op size_t" and "id op size_t". In case of template operators it
-   * will be "id op size_t"*/
-#  define __SYCL_GEN_OPT(op)                                                   \
-    template <typename T>                                                      \
-    EnableIfIntegral<T, bool> operator op(const T &rhs) const {                \
-      if (this->common_array[0] != rhs)                                        \
-        return false op true;                                                  \
-      return true op true;                                                     \
-    }                                                                          \
-    template <typename T>                                                      \
-    friend EnableIfIntegral<T, bool> operator op(const T &lhs,                 \
-                                                 const id<Dimensions> &rhs) {  \
-      if (lhs != rhs.common_array[0])                                          \
-        return false op true;                                                  \
-      return true op true;                                                     \
-    }
-
-  __SYCL_GEN_OPT(==)
-  __SYCL_GEN_OPT(!=)
-
-#  undef __SYCL_GEN_OPT
-
-#endif // __SYCL_DISABLE_ID_TO_INT_CONV__
-
-// OP is: +, -, *, /, %, <<, >>, &, |, ^, &&, ||, <, >, <=, >=
-#define __SYCL_GEN_OPT_BASE(op)                                                \
-  friend id<Dimensions> operator op(const id<Dimensions> &lhs,                 \
-                                    const id<Dimensions> &rhs) {               \
-    id<Dimensions> result;                                                     \
-    for (int i = 0; i < Dimensions; ++i) {                                     \
-      result.common_array[i] = lhs.common_array[i] op rhs.common_array[i];     \
-    }                                                                          \
-    return result;                                                             \
-  }
-
-#ifndef __SYCL_DISABLE_ID_TO_INT_CONV__
-// Enable operators with integral types only
-#  define __SYCL_GEN_OPT(op)                                                   \
-    __SYCL_GEN_OPT_BASE(op)                                                    \
-    template <typename T>                                                      \
-    friend EnableIfIntegral<T, id<Dimensions>> operator op(                    \
-        const id<Dimensions> &lhs, const T &rhs) {                             \
-      id<Dimensions> result;                                                   \
-      for (int i = 0; i < Dimensions; ++i) {                                   \
-        result.common_array[i] = lhs.common_array[i] op rhs;                   \
-      }                                                                        \
-      return result;                                                           \
-    }                                                                          \
-    template <typename T>                                                      \
-    friend EnableIfIntegral<T, id<Dimensions>> operator op(                    \
-        const T &lhs, const id<Dimensions> &rhs) {                             \
-      id<Dimensions> result;                                                   \
-      for (int i = 0; i < Dimensions; ++i) {                                   \
-        result.common_array[i] = lhs op rhs.common_array[i];                   \
-      }                                                                        \
-      return result;                                                           \
-    }
-#else
-#  define __SYCL_GEN_OPT(op)                                                   \
-    __SYCL_GEN_OPT_BASE(op)                                                    \
-    friend id<Dimensions> operator op(const id<Dimensions> &lhs,               \
-                                      const size_t &rhs) {                     \
-      id<Dimensions> result;                                                   \
-      for (int i = 0; i < Dimensions; ++i) {                                   \
-        result.common_array[i] = lhs.common_array[i] op rhs;                   \
-      }                                                                        \
-      return result;                                                           \
-    }                                                                          \
-    friend id<Dimensions> operator op(const size_t &lhs,                       \
-                                      const id<Dimensions> &rhs) {             \
-      id<Dimensions> result;                                                   \
-      for (int i = 0; i < Dimensions; ++i) {                                   \
-        result.common_array[i] = lhs op rhs.common_array[i];                   \
-      }                                                                        \
-      return result;                                                           \
-    }
-#endif // __SYCL_DISABLE_ID_TO_INT_CONV__
-
-  __SYCL_GEN_OPT(+)
-  __SYCL_GEN_OPT(-)
-  __SYCL_GEN_OPT(*)
-  __SYCL_GEN_OPT(/)
-  __SYCL_GEN_OPT(%)
-  __SYCL_GEN_OPT(<<)
-  __SYCL_GEN_OPT(>>)
-  __SYCL_GEN_OPT(&)
-  __SYCL_GEN_OPT(|)
-  __SYCL_GEN_OPT(^)
-  __SYCL_GEN_OPT(&&)
-  __SYCL_GEN_OPT(||)
-  __SYCL_GEN_OPT(<)
-  __SYCL_GEN_OPT(>)
-  __SYCL_GEN_OPT(<=)
-  __SYCL_GEN_OPT(>=)
-
-#undef __SYCL_GEN_OPT
-#undef __SYCL_GEN_OPT_BASE
-
-// OP is: +=, -=, *=, /=, %=, <<=, >>=, &=, |=, ^=
-#define __SYCL_GEN_OPT(op)                                                     \
-  friend id<Dimensions> &operator op(id<Dimensions> &lhs,                      \
-                                     const id<Dimensions> &rhs) {              \
-    for (int i = 0; i < Dimensions; ++i) {                                     \
-      lhs.common_array[i] op rhs.common_array[i];                              \
-    }                                                                          \
-    return lhs;                                                                \
-  }                                                                            \
-  friend id<Dimensions> &operator op(id<Dimensions> &lhs, const size_t &rhs) { \
-    for (int i = 0; i < Dimensions; ++i) {                                     \
-      lhs.common_array[i] op rhs;                                              \
-    }                                                                          \
-    return lhs;                                                                \
-  }
-
-  __SYCL_GEN_OPT(+=)
-  __SYCL_GEN_OPT(-=)
-  __SYCL_GEN_OPT(*=)
-  __SYCL_GEN_OPT(/=)
-  __SYCL_GEN_OPT(%=)
-  __SYCL_GEN_OPT(<<=)
-  __SYCL_GEN_OPT(>>=)
-  __SYCL_GEN_OPT(&=)
-  __SYCL_GEN_OPT(|=)
-  __SYCL_GEN_OPT(^=)
-
-#undef __SYCL_GEN_OPT
-
-// OP is unary +, -
-#define __SYCL_GEN_OPT(op)                                                     \
-  friend id<Dimensions> operator op(const id<Dimensions> &rhs) {               \
-    id<Dimensions> result;                                                     \
-    for (int i = 0; i < Dimensions; ++i) {                                     \
-      result.common_array[i] = (op rhs.common_array[i]);                       \
-    }                                                                          \
-    return result;                                                             \
-  }
-
-  __SYCL_GEN_OPT(+)
-  __SYCL_GEN_OPT(-)
-
-#undef __SYCL_GEN_OPT
-
-// OP is prefix ++, --
-#define __SYCL_GEN_OPT(op)                                                     \
-  friend id<Dimensions> &operator op(id<Dimensions> &rhs) {                    \
-    for (int i = 0; i < Dimensions; ++i) {                                     \
-      op rhs.common_array[i];                                                  \
-    }                                                                          \
-    return rhs;                                                                \
-  }
-
-  __SYCL_GEN_OPT(++)
-  __SYCL_GEN_OPT(--)
-
-#undef __SYCL_GEN_OPT
-
-// OP is postfix ++, --
-#define __SYCL_GEN_OPT(op)                                                     \
-  friend id<Dimensions> operator op(id<Dimensions> &lhs, int) {                \
-    id<Dimensions> old_lhs;                                                    \
-    for (int i = 0; i < Dimensions; ++i) {                                     \
-      old_lhs.common_array[i] = lhs.common_array[i];                           \
-      op lhs.common_array[i];                                                  \
-    }                                                                          \
-    return old_lhs;                                                            \
-  }
-
-  __SYCL_GEN_OPT(++)
-  __SYCL_GEN_OPT(--)
-
-#undef __SYCL_GEN_OPT
-};
-
-namespace detail {
-template <int Dimensions>
-size_t getOffsetForId(range<Dimensions> Range, id<Dimensions> Id,
-                      id<Dimensions> Offset) {
-  size_t offset = 0;
-  for (int i = 0; i < Dimensions; ++i)
-    offset = offset * Range[i] + Offset[i] + Id[i];
-  return offset;
-}
-
-inline id<1> getDelinearizedId(const range<1> &, size_t Index) {
-  return {Index};
-}
-
-inline id<2> getDelinearizedId(const range<2> &Range, size_t Index) {
-  size_t X = Index % Range[1];
-  size_t Y = Index / Range[1];
-  return {Y, X};
-}
-
-inline id<3> getDelinearizedId(const range<3> &Range, size_t Index) {
-  size_t D1D2 = Range[1] * Range[2];
-  size_t Z = Index / D1D2;
-  size_t ZRest = Index % D1D2;
-  size_t Y = ZRest / Range[2];
-  size_t X = ZRest % Range[2];
-  return {Z, Y, X};
-}
-} // namespace detail
-
-// C++ feature test macros are supported by all supported compilers
-// with the exception of MSVC 1914. It doesn't support deduction guides.
-#ifdef __cpp_deduction_guides
-id(size_t) -> id<1>;
-id(size_t, size_t) -> id<2>;
-id(size_t, size_t, size_t) -> id<3>;
-#endif
-
-namespace detail {
-template <int Dims, bool WithOffset> struct ItemBase;
-
-template <int Dims> struct ItemBase<Dims, true> {
-
-  bool operator==(const ItemBase &Rhs) const {
-    return (Rhs.MIndex == MIndex) && (Rhs.MExtent == MExtent) &&
-           (Rhs.MOffset == MOffset);
-  }
-
-  bool operator!=(const ItemBase &Rhs) const { return !((*this) == Rhs); }
-
-  size_t get_linear_id() const {
-    if (1 == Dims) {
-      return MIndex[0] - MOffset[0];
-    }
-    if (2 == Dims) {
-      return (MIndex[0] - MOffset[0]) * MExtent[1] + (MIndex[1] - MOffset[1]);
-    }
-    return ((MIndex[0] - MOffset[0]) * MExtent[1] * MExtent[2]) +
-           ((MIndex[1] - MOffset[1]) * MExtent[2]) + (MIndex[2] - MOffset[2]);
-  }
-
-  range<Dims> MExtent;
-  id<Dims> MIndex;
-  id<Dims> MOffset;
-};
-
-template <int Dims> struct ItemBase<Dims, false> {
-
-  bool operator==(const ItemBase &Rhs) const {
-    return (Rhs.MIndex == MIndex) && (Rhs.MExtent == MExtent);
-  }
-
-  bool operator!=(const ItemBase &Rhs) const { return !((*this) == Rhs); }
-
-  operator ItemBase<Dims, true>() const {
-    return ItemBase<Dims, true>(MExtent, MIndex, id<Dims>{});
-  }
-
-  size_t get_linear_id() const {
-    if (1 == Dims) {
-      return MIndex[0];
-    }
-    if (2 == Dims) {
-      return MIndex[0] * MExtent[1] + MIndex[1];
-    }
-    return (MIndex[0] * MExtent[1] * MExtent[2]) + (MIndex[1] * MExtent[2]) +
-           MIndex[2];
-  }
-
-  range<Dims> MExtent;
-  id<Dims> MIndex;
-};
-
-} // namespace detail
-
-template <int Dimensions = 1, bool with_offset = true> class item {
 public:
   static constexpr int dimensions = Dimensions;
 
-private:
-#ifndef __SYCL_DISABLE_ITEM_TO_INT_CONV__
+  id() noexcept = default;
+  id(const id<Dimensions> &rhs) = default;
+  id(id<Dimensions> &&rhs) = default;
+  id<Dimensions> &operator=(const id<Dimensions> &rhs) = default;
+  id<Dimensions> &operator=(id<Dimensions> &&rhs) = default;
+
+  /// Construct a 1D id with value dim0.
+  /// Only valid when the template parameter Dimensions is equal to 1.
+  template <int N = Dimensions, std::enable_if_t<N == 1, bool> = true>
+  id(std::size_t dim0) noexcept : Base(dim0) {}
+
+  /// Construct a 2D id with values dim0, dim1.
+  /// Only valid when the template parameter Dimensions is equal to 2.
+  template <int N = Dimensions, std::enable_if_t<N == 2, bool> = true>
+  id(std::size_t dim0, std::size_t dim1) noexcept : Base(dim0, dim1) {}
+
+  /// Construct a 3D id with values dim0, dim1, dim2.
+  /// Only valid when the template parameter Dimensions is equal to 3.
+  template <int N = Dimensions, std::enable_if_t<N == 3, bool> = true>
+  id(std::size_t dim0, std::size_t dim1, std::size_t dim2) noexcept
+      : Base(dim0, dim1, dim2) {}
+
+  /// Construct an id from the dimensions of range.
+  /// Only valid when the template parameter Dimensions is equal to 1.
+  template <int N = Dimensions, std::enable_if_t<N == 1, bool> = true>
+  id(const range<Dimensions> &range) noexcept : Base(range.get(0)) {}
+
+  /// Construct an id from the dimensions of range.
+  /// Only valid when the template parameter Dimensions is equal to 2.
+  template <int N = Dimensions, std::enable_if_t<N == 2, bool> = true>
+  id(const range<Dimensions> &range) noexcept
+      : Base(range.get(0), range.get(1)) {}
+
+  /// Construct an id from the dimensions of range.
+  /// Only valid when the template parameter Dimensions is equal to 3.
+  template <int N = Dimensions, std::enable_if_t<N == 3, bool> = true>
+  id(const range<Dimensions> &range) noexcept
+      : Base(range.get(0), range.get(1), range.get(2)) {}
+
+  /// Construct an id from item.get_id().
+  /// Only valid when the template parameter Dimensions is equal to 1.
+  template <int N = Dimensions, std::enable_if_t<N == 1, bool> = true>
+  id(const item<Dimensions> &item) noexcept : Base(item.get_id(0)) {}
+
+  /// Construct an id from item.get_id().
+  /// Only valid when the template parameter Dimensions is equal to 2.
+  template <int N = Dimensions, std::enable_if_t<N == 2, bool> = true>
+  id(const item<Dimensions> &item) noexcept
+      : Base(item.get_id(0), item.get_id(1)) {}
+
+  /// Construct an id from item.get_id().
+  /// Only valid when the template parameter Dimensions is equal to 3.
+  template <int N = Dimensions, std::enable_if_t<N == 3, bool> = true>
+  id(const item<Dimensions> &item) noexcept
+      : Base(item.get_id(0), item.get_id(1), item.get_id(2)) {}
+
+  /*
+    Declared and implemented in detail::RawArray:
+        std::size_t get(int dimension) const noexcept;
+        std::size_t& operator[](int dimension) noexcept;
+        std::size_t operator[](int dimension) const noexcept;
+    */
+
+  // Template operator is not allowed because it disables further type
+  //   conversion. For example, the next code will not work in case of template
+  //   conversion:
+  //   int a = id<1>(value);
+  /// Returns the same value as get(0).
+  ///  Available only when: Dimensions == 1.
+  operator EnableIfT<(Dimensions == 1), std::size_t>() const noexcept {
+    return Base::get(0);
+  }
+
+  // TODO: operators to be added
+};
+
+/// c++ deduction guides.
+#ifdef __cpp_deduction_guides
+id(std::size_t) -> id<1>;
+id(std::size_t, std::size_t) -> id<2>;
+id(std::size_t, std::size_t, std::size_t) -> id<3>;
+#endif
+
+/// SYCL 2020 4.9.1.4. item class.
+/// item identifies an instance of the function object executing at each point
+/// in a range.
+template <int Dimensions /* = 1*/, bool WithOffset /* = true*/> class item {
   /* Helper class for conversion operator. Void type is not suitable. User
-   * cannot even try to get address of the operator __private_class(). User
+   * cannot even try to get address of the operator PrivateTag(). User
    * may try to get an address of operator void() and will get the
    * compile-time error */
-  class __private_class;
+  class PrivateTag;
+  template <bool Condition, typename T>
+  using EnableIfT = std::conditional_t<Condition, T, PrivateTag>;
 
-  template <bool B, typename T>
-  using EnableIfT = std::conditional_t<B, T, __private_class>;
-#endif // __SYCL_DISABLE_ITEM_TO_INT_CONV__
 public:
+  static constexpr int dimensions = Dimensions;
+
   item() = delete;
-
-  id<Dimensions> get_id() const { return MImpl.MIndex; }
-
-  size_t _LIBSYCL_ALWAYS_INLINE get_id(int Dimension) const {
-    return MImpl.MIndex[Dimension];
-  }
-
-  size_t _LIBSYCL_ALWAYS_INLINE operator[](int Dimension) const {
-    return MImpl.MIndex[Dimension];
-  }
-
-  range<Dimensions> get_range() const { return MImpl.MExtent; }
-
-  size_t _LIBSYCL_ALWAYS_INLINE get_range(int Dimension) const {
-    return MImpl.MExtent[Dimension];
-  }
-#ifndef __SYCL_DISABLE_ITEM_TO_INT_CONV__
-  operator EnableIfT<Dimensions == 1, std::size_t>() const { return get_id(0); }
-#endif // __SYCL_DISABLE_ITEM_TO_INT_CONV__
-  template <bool has_offset = with_offset>
-  __SYCL2020_DEPRECATED("offsets are deprecated in SYCL2020")
-  std::enable_if_t<has_offset, id<Dimensions>> get_offset() const {
-    return MImpl.MOffset;
-  }
-
-  template <bool has_offset = with_offset>
-  __SYCL2020_DEPRECATED("offsets are deprecated in SYCL2020")
-  std::enable_if_t<has_offset, size_t> _LIBSYCL_ALWAYS_INLINE
-      get_offset(int Dimension) const {
-    return MImpl.MOffset[Dimension];
-  }
-
-  template <bool has_offset = with_offset>
-  operator std::enable_if_t<!has_offset, item<Dimensions, true>>() const {
-    return item<Dimensions, true>{MImpl.MExtent, MImpl.MIndex, /*Offset*/ {}};
-  }
-
-  size_t _LIBSYCL_ALWAYS_INLINE get_linear_id() const {
-    return MImpl.get_linear_id();
-  }
 
   item(const item &rhs) = default;
 
-  item(item<Dimensions, with_offset> &&rhs) = default;
+  item(item<Dimensions, WithOffset> &&rhs) = default;
 
   item &operator=(const item &rhs) = default;
 
   item &operator=(item &&rhs) = default;
 
-  bool operator==(const item &rhs) const { return rhs.MImpl == MImpl; }
+  friend bool operator==(const item<Dimensions, WithOffset> &lhs,
+                         const item<Dimensions, WithOffset> &rhs) {
+    if constexpr (WithOffset)
+      return (lhs.MId == rhs.MId) && (lhs.MRange == rhs.MRange) &&
+             (lhs.MOffset == rhs.MOffset);
+    else
+      return (lhs.MId == rhs.MId) && (lhs.MRange == rhs.MRange);
+  }
 
-  bool operator!=(const item &rhs) const { return rhs.MImpl != MImpl; }
+  friend bool operator!=(const item<Dimensions, WithOffset> &lhs,
+                         const item<Dimensions, WithOffset> &rhs) {
+    return !(lhs == rhs);
+  }
+
+  /// \return the constituent id representing the work-item’s position in the
+  /// iteration space.
+  id<Dimensions> get_id() const noexcept { return MId; }
+
+  /// Equivalent to return get_id()[dimension].
+  std::size_t get_id(int dimension) const noexcept {
+    return MId.get(dimension);
+  }
+
+  /// Equivalent to return get_id(dimension).
+  std::size_t operator[](int dimension) const noexcept {
+    return MId[dimension];
+  }
+
+  /// \return a range representing the dimensions of the range of possible
+  /// values of the item.
+  range<Dimensions> get_range() const noexcept { return MRange; }
+
+  /// Equivalent to return get_range().get(dimension).
+  std::size_t get_range(int dimension) const noexcept {
+    return MRange[dimension];
+  }
+
+  /// Deprecated in SYCL 2020.
+  /// For an item converted from an item with no offset this will always return
+  /// an id of all 0 values. This member function is only available if
+  /// WithOffset is true.
+  /// \return an id representing the n-dimensional offset provided to the
+  /// parallel_for and that is added by the runtime to the global-ID of each
+  /// work-item, if this item represents a global range.
+  template <bool HasOffset = WithOffset,
+            std::enable_if_t<HasOffset == true, bool> = true>
+  id<Dimensions> get_offset() const noexcept {
+    return MOffset;
+  }
+
+  /// Deprecated in SYCL 2020.
+  /// This conversion allow users to seamlessly write code that assumes an
+  /// offset and still provides an offset-less item. Available only when:
+  /// WithOffset == false.
+  /// \return an item representing the same information as the object holds but
+  /// also includes the offset set to 0.
+  template <bool HasOffset = WithOffset,
+            std::enable_if_t<HasOffset == false, bool> = true>
+  operator item<Dimensions, true>() const noexcept {
+    return item<Dimensions, true>(MRange, MId, id<Dimensions>{});
+  }
+
+  /// Equivalent to get_id(0).
+  /// Available only when: Dimensions == 1.
+  operator EnableIfT<(Dimensions == 1), std::size_t>() const noexcept {
+    return get_id(0);
+  }
+
+  /// \return Return the id as a linear index value.
+  std::size_t get_linear_id() const noexcept {
+    if constexpr (WithOffset) {
+      if constexpr (1 == Dimensions) {
+        return MId;
+      }
+      if constexpr (2 == Dimensions) {
+        return (MId[0] - MOffset[0]) * MRange[1] + (MId[1] - MOffset[1]);
+      }
+      return ((MId[0] - MOffset[0]) * MRange[1] * MRange[2]) +
+             ((MId[1] - MOffset[1]) * MRange[2]) + (MId[2] - MOffset[2]);
+    } else {
+      if constexpr (1 == Dimensions) {
+        return MId[0];
+      }
+      if constexpr (2 == Dimensions) {
+        return MId[0] * MRange[1] + MId[1];
+      }
+      return (MId[0] * MRange[1] * MRange[2]) + (MId[1] * MRange[2]) + MId[2];
+    }
+  }
 
 protected:
-  template <bool has_offset = with_offset>
-  item(std::enable_if_t<has_offset, const range<Dimensions>> &extent,
-       const id<Dimensions> &index, const id<Dimensions> &offset)
-      : MImpl{extent, index, offset} {}
+  template <bool HasOffset = WithOffset,
+            std::enable_if_t<HasOffset == true, bool> = true>
+  item(const sycl::range<Dimensions> &range, const sycl::id<Dimensions> &id,
+       const sycl::id<Dimensions> &offset)
+      : MRange(range), MId(id), MOffset(offset) {}
 
-  template <bool has_offset = with_offset>
-  item(std::enable_if_t<!has_offset, const range<Dimensions>> &extent,
-       const id<Dimensions> &index)
-      : MImpl{extent, index} {}
-
-  friend class detail::Builder;
-
-  template <int, bool> friend class item;
+  template <bool HasOffset = WithOffset,
+            std::enable_if_t<HasOffset == false, bool> = true>
+  item(const range<Dimensions> &range, const id<Dimensions> &id)
+      : MRange(range), MId(id), MOffset() {}
 
 private:
-  detail::ItemBase<Dimensions, with_offset> MImpl;
+  range<Dimensions> MRange;
+  id<Dimensions> MId;
+  id<Dimensions> MOffset;
+
+  friend class detail::Builder;
 };
 
 _LIBSYCL_END_NAMESPACE_SYCL

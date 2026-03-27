@@ -1,4 +1,4 @@
-
+// REQUIRES: any-device
 // RUN: %clangxx -fsycl %s -o %t.out
 // RUN: %t.out
 
