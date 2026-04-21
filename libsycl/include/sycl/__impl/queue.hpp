@@ -23,6 +23,7 @@
 #include <sycl/__impl/detail/config.hpp>
 #include <sycl/__impl/detail/default_async_handler.hpp>
 #include <sycl/__impl/detail/get_device_kernel_info.hpp>
+#include <sycl/__impl/detail/kernel_arg_helpers.hpp>
 #include <sycl/__impl/detail/obj_utils.hpp>
 #include <sycl/__impl/detail/unified_range_view.hpp>
 
@@ -32,27 +33,6 @@ class context;
 
 namespace detail {
 class QueueImpl;
-
-template <typename, typename T> struct CheckFunctionSignature {
-  static_assert(std::integral_constant<T, false>::value,
-                "Second template parameter is required to be of function type");
-};
-
-template <typename F, typename RetT, typename... Args>
-struct CheckFunctionSignature<F, RetT(Args...)> {
-private:
-  template <typename T>
-  static constexpr auto check(T *) -> typename std::is_same<
-      decltype(std::declval<T>().operator()(std::declval<Args>()...)),
-      RetT>::type;
-
-  template <typename> static constexpr std::false_type check(...);
-
-  using type = decltype(check<F>(0));
-
-public:
-  static constexpr bool value = type::value;
-};
 } // namespace detail
 
 // SYCL 2020 4.6.5. Queue class.
@@ -158,17 +138,12 @@ public:
   template <typename Param>
   typename Param::return_type get_backend_info() const;
 
-  /// Blocks the calling thread until all commands previously submitted to this
-  /// queue have completed. Synchronous errors are reported through SYCL
-  /// exceptions.
-  void wait();
-
   /// Defines and invokes a SYCL kernel function as a lambda expression or a
   /// named function object type.
   ///
   /// \param kernelFunc is the kernel functor or lambda.
   /// \return an event that represents the status of the submitted kernel.
-  template <typename KernelName, typename KernelType>
+  template <typename KernelName = detail::AutoName, typename KernelType>
   event single_task(const KernelType &kernelFunc) {
     return single_task<KernelName, KernelType>({}, kernelFunc);
   }
@@ -179,7 +154,7 @@ public:
   /// \param depEvent is an event that specifies the kernel dependency.
   /// \param kernelFunc is the kernel functor or lambda.
   /// \return an event that represents the status of the submitted kernel.
-  template <typename KernelName, typename KernelType>
+  template <typename KernelName = detail::AutoName, typename KernelType>
   event single_task(event depEvent, const KernelType &kernelFunc) {
     return single_task<KernelName, KernelType>({depEvent}, kernelFunc);
   }
@@ -187,27 +162,182 @@ public:
   /// Defines and invokes a SYCL kernel function as a lambda expression or a
   /// named function object type.
   ///
-  /// \param depEvents is a collection of events that specify the kernel
+  /// \param depEvents is a collection of events which specify the kernel
   /// dependencies.
   /// \param kernelFunc is the kernel functor or lambda.
   /// \return an event that represents the status of the submitted kernel.
-  template <typename KernelName, typename KernelType>
+  template <typename KernelName = detail::AutoName, typename KernelType>
   event single_task(const std::vector<event> &depEvents,
                     const KernelType &kernelFunc) {
     static_assert(
-        detail::CheckFunctionSignature<std::remove_reference_t<KernelType>,
-                                       void()>::value,
-        "sycl::queue::single_task() requires a kernel instead of a command "
-        "group");
+        (detail::CheckFunctionSignature<std::remove_reference_t<KernelType>,
+                                        void()>::value),
+        "sycl::queue::single_task() requires a kernel instead of command "
+        "group. ");
 
     setKernelParameters(depEvents);
-    submitSingleTask<KernelName, KernelType>(kernelFunc);
+    using NameT =
+        typename detail::get_kernel_name_t<KernelName, KernelType>::name;
+    submitSingleTask<NameT, KernelType>(kernelFunc);
     return getLastEvent();
   }
 
+  /// Defines and invokes a SYCL kernel function as a lambda expression or a
+  /// named function object type, for the specified range.
+  ///
+  /// \param numWorkItems specifies the global work space of the kernel.
+  /// \param rest acts as-if: const KernelType &KernelFunc".
+  // TODO: Rest will represent reduction types once it is supported.
+  template <typename KernelName = detail::AutoName, typename... Rest>
+  event parallel_for(range<1> numWorkItems, Rest &&...rest) {
+    return parallel_for<KernelName>(numWorkItems, {},
+                                    std::forward<Rest>(rest)...);
+  }
+
+  /// Defines and invokes a SYCL kernel function as a lambda expression or a
+  /// named function object type, for the specified range.
+  ///
+  /// \param numWorkItems specifies the global work space of the kernel.
+  /// \param rest acts as-if: const KernelType &KernelFunc".
+  // TODO: Rest will represent reduction types once it is supported.
+  template <typename KernelName = detail::AutoName, typename... Rest>
+  event parallel_for(range<2> numWorkItems, Rest &&...rest) {
+    return parallel_for<KernelName>(numWorkItems, {},
+                                    std::forward<Rest>(rest)...);
+  }
+
+  /// Defines and invokes a SYCL kernel function as a lambda expression or a
+  /// named function object type, for the specified range.
+  ///
+  /// \param numWorkItems specifies the global work space of the kernel.
+  /// \param rest acts as-if: const KernelType &KernelFunc".
+  // TODO: Rest will represent reduction types once it is supported.
+  template <typename KernelName = detail::AutoName, typename... Rest>
+  event parallel_for(range<3> numWorkItems, Rest &&...rest) {
+    return parallel_for<KernelName>(numWorkItems, {},
+                                    std::forward<Rest>(rest)...);
+  }
+
+  /// Defines and invokes a SYCL kernel function as a lambda expression or a
+  /// named function object type, for the specified range.
+  ///
+  /// \param numWorkItems specifies the global work space of the kernel.
+  /// \param depEvent adds a requirement that the action represented by depEvent
+  /// must complete before executing this kernel.
+  /// \param rest acts as-if: const KernelType &KernelFunc".
+  // TODO: Rest will represent reduction types once it is supported.
+  template <typename KernelName = detail::AutoName, typename... Rest>
+  event parallel_for(range<1> numWorkItems, event depEvent, Rest &&...rest) {
+    return parallel_for<KernelName>(numWorkItems, {depEvent},
+                                    std::forward<Rest>(rest)...);
+  }
+
+  /// Defines and invokes a SYCL kernel function as a lambda expression or a
+  /// named function object type, for the specified range.
+  ///
+  /// \param numWorkItems specifies the global work space of the kernel.
+  /// \param depEvent adds a requirement that the action represented by depEvent
+  /// must complete before executing this kernel.
+  /// \param rest acts as-if: const KernelType &KernelFunc".
+  // TODO: Rest will represent reduction types once it is supported.
+  template <typename KernelName = detail::AutoName, typename... Rest>
+  event parallel_for(range<2> numWorkItems, event depEvent, Rest &&...rest) {
+    return parallel_for<KernelName>(numWorkItems, {depEvent},
+                                    std::forward<Rest>(rest)...);
+  }
+
+  /// Defines and invokes a SYCL kernel function as a lambda expression or a
+  /// named function object type, for the specified range.
+  ///
+  /// \param numWorkItems specifies the global work space of the kernel.
+  /// \param depEvent adds a requirement that the action represented by depEvent
+  /// must complete before executing this kernel.
+  /// \param rest acts as-if: const KernelType &KernelFunc".
+  // TODO: Rest will represent reduction types once it is supported.
+  template <typename KernelName = detail::AutoName, typename... Rest>
+  event parallel_for(range<3> numWorkItems, event depEvent, Rest &&...rest) {
+    return parallel_for<KernelName>(numWorkItems, {depEvent},
+                                    std::forward<Rest>(rest)...);
+  }
+
+  /// Defines and invokes a SYCL kernel function as a lambda expression or a
+  /// named function object type, for the specified range.
+  ///
+  /// \param numWorkItems specifies the global work space of the kernel
+  /// \param depEvents is a vector of events that specifies the kernel
+  /// dependencies.
+  /// \param rest acts as-if: const KernelType &KernelFunc".
+  // TODO: Rest will represent reduction types once it is supported.
+  template <typename KernelName = detail::AutoName, typename... Rest>
+  event parallel_for(range<1> numWorkItems, const std::vector<event> &depEvents,
+                     Rest &&...rest) {
+    return parallelForImpl<KernelName>(numWorkItems, depEvents,
+                                       std::forward<Rest>(rest)...);
+  }
+
+  /// Defines and invokes a SYCL kernel function as a lambda expression or a
+  /// named function object type, for the specified range.
+  ///
+  /// \param numWorkItems specifies the global work space of the kernel
+  /// \param depEvents is a vector of events that specifies the kernel
+  /// dependencies.
+  /// \param rest acts as-if: const KernelType &KernelFunc".
+  // TODO: Rest will represent reduction types once it is supported.
+  template <typename KernelName = detail::AutoName, typename... Rest>
+  event parallel_for(range<2> numWorkItems, const std::vector<event> &depEvents,
+                     Rest &&...rest) {
+    return parallelForImpl<KernelName>(numWorkItems, depEvents,
+                                       std::forward<Rest>(rest)...);
+  }
+
+  /// Defines and invokes a SYCL kernel function as a lambda expression or a
+  /// named function object type, for the specified range.
+  ///
+  /// \param numWorkItems specifies the global work space of the kernel
+  /// \param depEvents is a vector of events that specifies the kernel
+  /// dependencies.
+  /// \param rest acts as-if: const KernelType &KernelFunc".
+  // TODO: Rest will represent reduction types once it is supported.
+  template <typename KernelName = detail::AutoName, typename... Rest>
+  event parallel_for(range<3> numWorkItems, const std::vector<event> &depEvents,
+                     Rest &&...rest) {
+    return parallelForImpl<KernelName>(numWorkItems, depEvents,
+                                       std::forward<Rest>(rest)...);
+  }
+
+  /// Blocks the calling thread until all commands previously submitted to this
+  /// queue have completed. Synchronous errors are reported through SYCL
+  /// exceptions.
+  void wait();
+
 private:
-  // Name of this function is defined by compiler. It generates call to this
-  // function in the host implementation of KernelFunc in submitSingleTask.
+  template <typename KernelName, int Dims, typename... Rest>
+  event parallelForImpl(range<Dims> numWorkItems,
+                        const std::vector<event> &depEvents, Rest &&...rest) {
+    if constexpr (sizeof...(Rest) != 1)
+      throw sycl::exception(errc::feature_not_supported,
+                            "Reductions are not supported.");
+    setKernelParameters(depEvents, numWorkItems);
+
+    using KernelType =
+        std::decay_t<detail::nth_type_t<sizeof...(Rest) - 1, Rest...>>;
+    using LambdaArgType = sycl::detail::lambda_arg_type<KernelType, item<Dims>>;
+    static_assert(
+        std::is_convertible_v<sycl::item<Dims>, LambdaArgType>,
+        "Kernel argument of a sycl::parallel_for with sycl::range "
+        "must be either sycl::item or be convertible from sycl::item");
+
+    using NameT =
+        typename detail::get_kernel_name_t<KernelName, KernelType>::name;
+    submitParallelFor<NameT, item<Dims>, KernelType>(rest...);
+    return getLastEvent();
+  }
+
+  /// Name of this function is defined by compiler. It generates call to this
+  /// function in the host implementation of KernelFunc in submitSingleTask or
+  /// submitParallelFor.
+  /// \param KernelName a name of the kernel being invoked.
+  /// \param args kernel arguments for kernel invocation.
   template <typename KN, typename... Args>
   void sycl_kernel_launch(const char *KernelName, Args &&...args) {
     static_assert(
@@ -220,6 +350,10 @@ private:
                      sizeof(FirstArg));
   }
 
+  /// The sycl_kernel_entry_point attribute facilitates the generation of an
+  /// offload kernel entry point function with parameters corresponding to the
+  /// (potentially decomposed) kernel arguments and a body that (potentially
+  /// reconstructs the arguments and) executes the kernel.
 #ifdef SYCL_LANGUAGE_VERSION
 #  define _LIBSYCL_ENTRY_POINT_ATTR__(KernelName)                              \
     [[clang::sycl_kernel_entry_point(KernelName)]]
@@ -227,18 +361,46 @@ private:
 #  define _LIBSYCL_ENTRY_POINT_ATTR__(KernelName)
 #endif // SYCL_LANGUAGE_VERSION
 
+  /// Specifies the parameters and body of the generated offload kernel entry
+  /// point for single_task invocations. On host compiler generates call to
+  /// sycl_kernel_launch instead of KernelFunc invocation.
   template <typename KernelName, typename KernelType>
   _LIBSYCL_ENTRY_POINT_ATTR__(KernelName)
-  void submitSingleTask(const KernelType &KernelFunc) {
+  void submitSingleTask(const KernelType KernelFunc) {
     KernelFunc();
+  }
+
+  /// Specifies the parameters and body of the generated offload kernel entry
+  /// point for parallel_for invocations. On host compiler generates call to
+  /// sycl_kernel_launch instead of KernelFunc invocation.
+  template <typename KernelName, typename ElementType, typename KernelType>
+  _LIBSYCL_ENTRY_POINT_ATTR__(KernelName)
+  void submitParallelFor(const KernelType KernelFunc) {
+#ifdef __SYCL_DEVICE_ONLY__
+    KernelFunc(detail::Builder::getElement(detail::declptr<ElementType>()));
+#endif
+    (void)KernelFunc;
   }
 #undef _LIBSYCL_ENTRY_POINT_ATTR__
 
-  event getLastEvent();
-  void submitKernelImpl(detail::DeviceKernelInfo &KernelInfo, void *ArgData,
-                        size_t ArgSize);
+  /// Passes kernel parameters to runtime.
+  /// \param Events a collection of events representing dependencies of the
+  /// kernel to submit.
+  /// \param Range a unified view of range for kernel execution.
   void setKernelParameters(const std::vector<event> &Events,
                            const detail::UnifiedRangeView &Range = {});
+
+  /// Passes kernel arguments to runtime.
+  /// If all dependencies are met and kernel can be submitted to backend - it is
+  /// done in this call.
+  /// \param KernelInfo a name of the kernel being invoked.
+  /// \param ArgData a pointer to kernel argument.
+  /// \param ArgSize a size of kernel argument.
+  void submitKernelImpl(detail::DeviceKernelInfo &KernelInfo, void *ArgData,
+                        size_t ArgSize);
+
+  /// \return an event representing last kernel invocation.
+  event getLastEvent();
 
   queue(const std::shared_ptr<detail::QueueImpl> &Impl) : impl(Impl) {}
   std::shared_ptr<detail::QueueImpl> impl;
