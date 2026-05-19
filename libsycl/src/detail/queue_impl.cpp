@@ -32,9 +32,9 @@ static void setKernelLaunchArgs(const detail::UnifiedRangeView &Range,
   uint32_t GroupSize[3] = {1, 1, 1};
   if (Range.MLocalSize) {
     for (size_t I = 0; I < Range.MDims; ++I) {
+      assert(Range.MLocalSize[I] <= std::numeric_limits<uint32_t>::max() &&
+             Range.MLocalSize[I] != 0);
       GroupSize[I] = static_cast<uint32_t>(Range.MLocalSize[I]);
-      assert(GroupSize[I] && "Local range contains zero size. Causes division "
-                             "by zero for group range counting.");
     }
   }
 
@@ -123,13 +123,10 @@ void QueueImpl::submitKernelImpl(DeviceKernelInfo &KernelInfo, void *ArgData,
   assert(ArgData && "At least one argument must exist");
   assert(ArgSize && "Arguments size must be greater than 0");
 
-  // ol_kernel_launch_prop_t Props[2];
-  // Props[0].type = OL_KERNEL_LAUNCH_PROP_TYPE_SIZE;
-  // Props[0].data = &ArgSize;
-  // Props[1] = OL_KERNEL_LAUNCH_PROP_END;
-  auto Result =
-      olLaunchKernel(MOffloadQueue, MDevice.getOLHandle(), Kernel, &ArgData,
-                     ArgSize, &MCurrentSubmitInfo.Range /*, Props*/);
+  void *ArgPtrs[] = {ArgData};
+  size_t ArgSizes[] = {ArgSize};
+  auto Result = olLaunchKernel(MOffloadQueue, MDevice.getOLHandle(), Kernel,
+                               &MCurrentSubmitInfo.Range, 1, ArgPtrs, ArgSizes);
   // Clean up current kernel submit data to prepare structures for next
   // submission.
   MCurrentSubmitInfo.DepEvents.clear();
