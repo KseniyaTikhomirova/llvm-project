@@ -86,6 +86,10 @@ public:
   ol_symbol_handle_t getOrCreateKernel(DeviceKernelInfo &KernelInfo,
                                        DeviceImpl &Device);
 
+  /// Returns true if at least one registered device image is compatible with
+  /// the given device.
+  bool hasCompatibleImage(const DeviceImpl &Device);
+
 protected:
   ProgramAndKernelManager() = default;
   ~ProgramAndKernelManager() = default;
