@@ -20,6 +20,8 @@
 #include <sycl/__impl/event.hpp>
 #include <sycl/__impl/exception.hpp>
 #include <sycl/__impl/index_space_classes.hpp>
+#include <sycl/__impl/memory_enums.hpp>
+#include <sycl/__impl/nd_index_space_classes.hpp>
 #include <sycl/__impl/platform.hpp>
 #include <sycl/__impl/queue.hpp>
 #include <sycl/__impl/usm_functions.hpp>
