@@ -129,7 +129,9 @@ static bool isImageCompatible(const DeviceImageManager &Image,
 }
 
 ol_symbol_handle_t ProgramAndKernelManager::getOrCreateKernel(
-    DeviceKernelInfo &KernelInfo, ContextImpl &Context, DeviceImpl &Device) {
+    DeviceKernelInfo &KernelInfo, const std::shared_ptr<ContextImpl> &Context,
+    DeviceImpl &Device) {
+  assert(Context && "Context can't be nullptr");
 
   std::lock_guard<std::mutex> KernelGuard(MDataCollectionMutex);
 
@@ -144,8 +146,7 @@ ol_symbol_handle_t ProgramAndKernelManager::getOrCreateKernel(
                         KernelInfo.getName().data() + " was found");
 
   auto DeviceHandle = Device.getOLHandle();
-  auto Program =
-      DeviceImage.getOrCreateProgram(Context.getOLHandleRef(), DeviceHandle);
+  auto Program = Context->getOrCreateProgram(DeviceImage, DeviceHandle);
 
   ol_symbol_handle_t Kernel{};
   callAndThrow(olGetSymbol, Program, KernelInfo.getName().data(),

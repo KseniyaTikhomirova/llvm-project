@@ -19,9 +19,13 @@
 #include <sycl/__impl/context.hpp>
 #include <sycl/__impl/detail/config.hpp>
 
+#include <detail/device_image_wrapper.hpp>
+
 #include <OffloadAPI.h>
 
 #include <functional>
+#include <mutex>
+#include <unordered_map>
 
 _LIBSYCL_BEGIN_NAMESPACE_SYCL
 
@@ -82,10 +86,28 @@ public:
   /// \return backend of the platform this context is associated with.
   backend getBackend() const;
 
+  /// Returns a liboffload program which is compatible with the specified
+  /// device. Searches among existing programs and creates a new one if no
+  /// compatible image is found.
+  /// \param ContextHandle the liboffload handle of the context to create the
+  /// program in.
+  /// \param DeviceHandle the liboffload handle of the device the program must
+  /// be compatible with.
+  /// \return the liboffload handle of the program compatible with the specified
+  /// device.
+  ol_program_handle_t getOrCreateProgram(const DeviceImageManager &DeviceImage,
+                                         ol_device_handle_t DeviceHandle);
+
 private:
   const async_handler MAsyncHandler;
   const std::vector<DeviceImpl *> MDevices;
   ol_context_handle_t MOffloadContext{};
+
+  // TODO: later to replace with efficient kernel & program cache impl.
+  std::mutex MProgramCacheMutex;
+  std::unordered_map<ol_device_handle_t,
+                     std::pair<DeviceImageManager *, ProgramWrapper>>
+      MPrograms;
 };
 
 } // namespace detail

@@ -62,14 +62,23 @@ static void setKernelLaunchArgs(const detail::UnifiedRangeView &Range,
   ArgsToSet.DynSharedMemory = 0;
 }
 
-QueueImpl::QueueImpl(DeviceImpl &deviceImpl, const async_handler &asyncHandler,
+QueueImpl::QueueImpl(const std::shared_ptr<ContextImpl> &contextImpl,
+                     DeviceImpl &deviceImpl, const async_handler &asyncHandler,
                      const property_list &propList, PrivateTag)
     : MIsInorder(false), MAsyncHandler(asyncHandler), MPropList(propList),
-      MDevice(deviceImpl),
-      MContext(MDevice.getPlatformImpl().getDefaultContext()) {
-  assert(MContext.getOLHandleRef() &&
-         "Queue must be associated with a valid offload context");
-  callAndThrow(olCreateQueue, MContext.getOLHandleRef(), MDevice.getOLHandle(),
+      MDevice(deviceImpl), MContext(contextImpl) {
+  assert(MContext && "Context impl ptr can't be nullptr");
+  bool DeviceInContext = false;
+  // TODO; this check may be already done on liboffload level, conform and
+  // remove
+  MContext->iterateDevices([&](DeviceImpl *ContextDevice) {
+    DeviceInContext |= ContextDevice == &MDevice;
+  });
+  if (!DeviceInContext)
+    throw sycl::exception(sycl::make_error_code(sycl::errc::invalid),
+                          "The device is not associated with the context.");
+
+  callAndThrow(olCreateQueue, MContext->getOLHandleRef(), MDevice.getOLHandle(),
                &MOffloadQueue);
 }
 

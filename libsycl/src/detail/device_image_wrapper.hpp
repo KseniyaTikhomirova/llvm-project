@@ -22,7 +22,6 @@
 #include <OffloadAPI.h>
 
 #include <memory>
-#include <unordered_map>
 
 _LIBSYCL_BEGIN_NAMESPACE_SYCL
 namespace detail {
@@ -41,7 +40,7 @@ public:
   /// \throw sycl::exception with sycl::errc::runtime when failed to create the
   /// program.
   ProgramWrapper(ol_context_handle_t Context, ol_device_handle_t Device,
-                 DeviceImageManager &DevImage);
+                 const DeviceImageManager &DevImage);
 
   /// Releases the corresponding liboffload program handle by calling
   /// olDestroyProgram.
@@ -59,8 +58,7 @@ private:
   ol_program_handle_t MProgram{};
 };
 
-/// This class manages all work with device images: from data parsing to program
-/// creation.
+/// This class manages data parsing of device images.
 class DeviceImageManager {
 public:
   DeviceImageManager(std::unique_ptr<llvm::object::OffloadBinary> Bin)
@@ -77,21 +75,7 @@ public:
   /// \return a reference to the corresponding parsed OffloadBinary object.
   const llvm::object::OffloadBinary &getOffloadBinary() const { return *MBin; }
 
-  /// Returns a liboffload program which is compatible with the specified
-  /// device. Searches among existing programs and creates a new one if no
-  /// compatible image is found.
-  /// \param ContextHandle the liboffload handle of the context to create the
-  /// program in.
-  /// \param DeviceHandle the liboffload handle of the device the program must
-  /// be compatible with.
-  /// \return the liboffload handle of the program compatible with the specified
-  /// device.
-  ol_program_handle_t getOrCreateProgram(ol_context_handle_t ContextHandle,
-                                         ol_device_handle_t DeviceHandle);
-
 protected:
-  std::unordered_map<ol_device_handle_t, ProgramWrapper> MPrograms;
-
   std::unique_ptr<llvm::object::OffloadBinary> MBin;
 };
 

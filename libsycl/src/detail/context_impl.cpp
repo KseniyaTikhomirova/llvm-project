@@ -49,5 +49,15 @@ void ContextImpl::iterateDevices(
 
 backend ContextImpl::getBackend() const { return MDevices[0]->getBackend(); }
 
+ol_program_handle_t
+ContextImpl::getOrCreateProgram(const DeviceImageManager &DeviceImage,
+                                ol_device_handle_t DeviceHandle) {
+  std::lock_guard<std::mutex> Guard(MProgramCacheMutex);
+  const auto &[Iterator, Flag] = MPrograms.emplace(
+      std::piecewise_construct, std::forward_as_tuple(DeviceHandle),
+      std::forward_as_tuple(MOffloadContext, DeviceHandle, DeviceImage));
+  return Iterator->second.getOLHandle();
+}
+
 } // namespace detail
 _LIBSYCL_END_NAMESPACE_SYCL

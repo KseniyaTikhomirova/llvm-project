@@ -18,6 +18,7 @@
 #include <sycl/__impl/async_handler.hpp>
 #include <sycl/__impl/device.hpp>
 #include <sycl/__impl/event.hpp>
+#include <sycl/__impl/platform.hpp>
 #include <sycl/__impl/property_list.hpp>
 
 #include <sycl/__impl/detail/config.hpp>
@@ -134,6 +135,35 @@ public:
   /// \param asyncHandler is a SYCL asynchronous exception handler.
   /// \param propList is a list of properties for queue construction.
   explicit queue(const device &syclDevice, const async_handler &asyncHandler,
+                 const property_list &propList = {})
+      : queue(syclDevice.get_platform().khr_get_default_context(), syclDevice,
+              asyncHandler, propList) {}
+
+  template <
+      typename DeviceSelector,
+      typename = detail::EnableIfDeviceSelectorIsInvocable<DeviceSelector>>
+  explicit queue(const context &syclContext,
+                 const DeviceSelector &deviceSelector,
+                 const property_list &propList = {})
+      : queue(syclContext, detail::SelectDevice(deviceSelector),
+              detail::defaultAsyncHandler, propList) {}
+
+  template <
+      typename DeviceSelector,
+      typename = detail::EnableIfDeviceSelectorIsInvocable<DeviceSelector>>
+  explicit queue(const context &syclContext,
+                 const DeviceSelector &deviceSelector,
+                 const async_handler &asyncHandler,
+                 const property_list &propList = {})
+      : queue(syclContext, detail::SelectDevice(deviceSelector), asyncHandler,
+              propList) {}
+
+  explicit queue(const context &syclContext, const device &syclDevice,
+                 const property_list &propList = {})
+      : queue(syclContext, syclDevice, detail::defaultAsyncHandler, propList) {}
+
+  explicit queue(const context &syclContext, const device &syclDevice,
+                 const async_handler &asyncHandler,
                  const property_list &propList = {});
 
   /// \return the SYCL backend associated with this queue.

@@ -86,9 +86,10 @@ public:
   /// \param Device the device for which this kernel must be compiled.
   /// \return a liboffload kernel handle that is ready to be passed to kernel
   /// execution methods.
-  ol_symbol_handle_t getOrCreateKernel(DeviceKernelInfo &KernelInfo,
-                                       ContextImpl &Context,
-                                       DeviceImpl &Device);
+  ol_symbol_handle_t
+  getOrCreateKernel(DeviceKernelInfo &KernelInfo,
+                    const std::shared_ptr<ContextImpl> &Context,
+                    DeviceImpl &Device);
 
   /// \return kernel info for the kernel with the specified name.
   DeviceKernelInfo &getDeviceKernelInfo(std::string_view KernelName);

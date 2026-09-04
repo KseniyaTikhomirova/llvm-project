@@ -23,6 +23,7 @@
 _LIBSYCL_BEGIN_NAMESPACE_SYCL
 
 class device;
+class context;
 
 namespace detail {
 
