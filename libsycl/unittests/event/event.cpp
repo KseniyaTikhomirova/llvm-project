@@ -127,7 +127,7 @@ TEST(Event, GetWaitListWithSetKernelParametersAndLaunch) {
   std::vector<event> DepEvents = {Dep1, Dep2};
 
   Q.setKernelLaunchParams(DepEvents, {});
-  Q.sycl_kernel_launch<TestKernelWithDepsKernelInfo>(Data);
+  Q.sycl_kernel_launch<TestKernelWithDepsKernelInfo>(Data)();
   event KernelEvent = Q.getLastEvent();
 
   std::vector<event> WaitList = KernelEvent.get_wait_list();

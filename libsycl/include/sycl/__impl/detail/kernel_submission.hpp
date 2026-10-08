@@ -17,11 +17,13 @@
 #include <sycl/__impl/detail/config.hpp>
 #include <sycl/__impl/detail/get_device_kernel_info.hpp>
 #include <sycl/__impl/detail/kernel_arg_helpers.hpp>
+#include <sycl/__impl/detail/local_accessor_base.hpp>
 #include <sycl/__impl/exception.hpp>
 #include <sycl/__impl/index_space_classes.hpp>
 #include <sycl/__impl/nd_item.hpp>
 #include <sycl/__impl/nd_range.hpp>
 
+#include <cstddef>
 #include <tuple>
 #include <type_traits>
 #include <utility>
@@ -43,11 +45,15 @@ void checkNDRangeAndThrow(const sycl::nd_range<Dims> &ExecutionRange) {
 
 template <typename DerivedT> class KernelSubmissionBase {
 protected:
+  // TODO: take the kernel object by const reference in both entry points once
+  // the compiler passes a mutable device kernel object to
+  // sycl_reify_kernel_parameters for a const one.
+  // Until then the by-value parameter keeps it mutable on device.
   template <typename KernelName, typename KernelType>
 #ifdef SYCL_LANGUAGE_VERSION
   [[clang::sycl_kernel_entry_point(KernelName)]]
 #endif
-  void submitSingleTask(const KernelType &KernelFunc) {
+  void submitSingleTask(KernelType KernelFunc) {
     KernelFunc();
   }
 
@@ -55,21 +61,36 @@ protected:
 #ifdef SYCL_LANGUAGE_VERSION
   [[clang::sycl_kernel_entry_point(KernelName)]]
 #endif
-  void submitParallelFor(const KernelType &KernelFunc) {
+  void submitParallelFor(KernelType KernelFunc) {
     KernelFunc(detail::Builder::getElement(detail::declptr<ElementType>()));
   }
 
+  // TODO: handle arrays of local accessors.
   template <typename KI, typename... Args>
-  void sycl_kernel_launch(Args &&...KernelArgs) {
+  auto sycl_kernel_launch(Args &&...KernelArgs) {
     static_assert(sizeof...(KernelArgs) == 1,
                   "sycl_kernel_launch expects only 1 argument now: the "
                   "callable object passed to kernel invocation by the user.");
 
-    auto FirstArg = std::get<0>(std::tie(KernelArgs...));
-    static_cast<DerivedT *>(this)->submitKernelImpl(
-        detail::getDeviceKernelInfo<typename KI::kernel_name>(
-            KI::kernel_entry_point_name),
-        &FirstArg, sizeof(FirstArg));
+    return [this, &KernelArgs...](const auto &...LocalAccessors) {
+      const std::size_t LocalMemSize =
+          LocalAccessorReifier::getBlockSize(LocalAccessors...);
+
+      auto &KernelObj = std::get<0>(std::tie(KernelArgs...));
+      static_cast<DerivedT *>(this)->submitKernelImpl(
+          detail::getDeviceKernelInfo<typename KI::kernel_name>(
+              KI::kernel_entry_point_name),
+          &KernelObj, sizeof(KernelObj), LocalMemSize);
+    };
+  }
+
+  // Called at the start of the kernel. Must be static: 'this' isn't available
+  // in the generated device entry point.
+  template <typename KI, typename... Args>
+  static auto sycl_reify_kernel_parameters(Args &...) {
+    return [](auto &...LocalAccessors) {
+      LocalAccessorReifier::bind(LocalAccessors...);
+    };
   }
 
   template <typename KernelName, int Dims, template <int> class Range,

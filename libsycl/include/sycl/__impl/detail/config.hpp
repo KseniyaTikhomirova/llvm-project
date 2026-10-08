@@ -72,6 +72,23 @@ static_assert(__cplusplus >= 201703L, "Libsycl requires C++17 or later.");
 #  endif
 #endif // __SYCL2020_DEPRECATED
 
+// Marks a type whose objects in a kernel argument libsycl has to inspect before
+// the kernel is submitted and update at the start of the kernel (e.g. local
+// accessors). The compiler passes such subobjects to the callables returned by
+// sycl_kernel_launch and sycl_reify_kernel_parameters.
+#ifdef SYCL_LANGUAGE_VERSION
+#  define _LIBSYCL_REIFIED_KERNEL_PARAMETER                                    \
+    [[clang::sycl_reified_kernel_parameter]]
+#else
+#  define _LIBSYCL_REIFIED_KERNEL_PARAMETER
+#endif
+
+#ifdef __SYCL_DEVICE_ONLY__
+#  define _LIBSYCL_LOCAL_AS [[clang::sycl_local]]
+#else
+#  define _LIBSYCL_LOCAL_AS
+#endif // __SYCL_DEVICE_ONLY__
+
 #if defined(_WIN32) && !defined(_DLL) && !defined(__SYCL_DEVICE_ONLY__)
 // When built for use with the MSVC C++ standard library, libsycl requires
 // use of the DLL versions of the MSVC run-time (RT) library. This requirement

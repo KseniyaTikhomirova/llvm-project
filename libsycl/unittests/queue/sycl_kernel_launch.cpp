@@ -70,7 +70,7 @@ TEST(Queue, KernelLaunch) {
         EXPECT_EQ(std::memcmp(PayloadPtr, &Data, sizeof(KernelData)), 0);
         return OL_SUCCESS;
       });
-  Q.sycl_kernel_launch<TestKernelInfo>(Data);
+  Q.sycl_kernel_launch<TestKernelInfo>(Data)();
 
   EXPECT_CALL(Mock.get(), olSyncQueue(_)).Times(1);
   Q.wait();
@@ -102,7 +102,7 @@ static ol_kernel_launch_size_args_t captureKernelLaunchArgs(
       });
   SetParams(Q);
   KernelData Data{};
-  Q.sycl_kernel_launch<DimSwapTestKernelInfo>(Data);
+  Q.sycl_kernel_launch<DimSwapTestKernelInfo>(Data)();
   return Captured;
 }
 
