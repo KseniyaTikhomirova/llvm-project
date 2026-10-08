@@ -72,6 +72,36 @@ static_assert(__cplusplus >= 201703L, "Libsycl requires C++17 or later.");
 #  endif
 #endif // __SYCL2020_DEPRECATED
 
+#ifndef _LIBSYCL_DO_PRAGMA
+#  define _LIBSYCL_DO_PRAGMA(x) _Pragma(#x)
+#endif
+
+// Suppresses warnings about use of deprecated declarations. Needed where
+// libsycl has to name its own deprecated entities, e.g. access::target::local
+// in the declaration of the deprecated local accessor.
+#define _LIBSYCL_SUPPRESS_DEPRECATED_PUSH                                      \
+  _LIBSYCL_DO_PRAGMA(GCC diagnostic push)                                      \
+  _LIBSYCL_DO_PRAGMA(GCC diagnostic ignored "-Wdeprecated-declarations")
+#define _LIBSYCL_SUPPRESS_DEPRECATED_POP _LIBSYCL_DO_PRAGMA(GCC diagnostic pop)
+
+// SYCL special classes (e.g. local_accessor) are marked with attributes that
+// affect how the device compiler treats the class and its members. The
+// attributes must never change the class layout: a special class has a single
+// definition shared by host and device.
+//
+// sycl_special_class is only available in a device compilation, so it is
+// guarded by __SYCL_DEVICE_ONLY__. sycl_local is additionally available in a
+// SYCL host compilation, but it is applied in device compilations only so that
+// the host layout of a special class stays the same whether or not the header
+// is compiled as SYCL.
+#ifdef __SYCL_DEVICE_ONLY__
+#  define _LIBSYCL_SPECIAL_CLASS [[clang::sycl_special_class]]
+#  define _LIBSYCL_LOCAL_AS [[clang::sycl_local]]
+#else
+#  define _LIBSYCL_SPECIAL_CLASS
+#  define _LIBSYCL_LOCAL_AS
+#endif // __SYCL_DEVICE_ONLY__
+
 #if defined(_WIN32) && !defined(_DLL) && !defined(__SYCL_DEVICE_ONLY__)
 // When built for use with the MSVC C++ standard library, libsycl requires
 // use of the DLL versions of the MSVC run-time (RT) library. This requirement
