@@ -39,6 +39,69 @@ using HalfMixedT =
     std::conditional_t<std::is_floating_point_v<T> && (sizeof(T) > 2), T,
                        NarrowT>;
 
+#ifndef __SYCL_DEVICE_ONLY__
+// On the host, conversions between _Float16 and float are done in software:
+// x86 without F16C lowers them to compiler-rt calls (__extendhfsf2,
+// __truncsfhf2), which aren't linked by default for MSVC targets.
+
+constexpr float halfBitsToFloat(std::uint16_t Bits) {
+  std::uint32_t Sign = static_cast<std::uint32_t>(Bits & 0x8000) << 16;
+  std::uint32_t Exp = (Bits >> 10) & 0x1F;
+  std::uint32_t Mant = Bits & 0x3FF;
+  if (Exp == 0) {
+    float Abs = static_cast<float>(Mant) * 0x1p-24f;
+    return Sign ? -Abs : Abs;
+  }
+  if (Exp == 0x1F)
+    return __builtin_bit_cast(float, Sign | 0x7F800000 | (Mant << 13));
+  return __builtin_bit_cast(float, Sign | ((Exp + 112) << 23) | (Mant << 13));
+}
+
+// Rounds to nearest, ties to even. NaNs become quiet NaNs.
+constexpr std::uint16_t floatToHalfBits(float Value) {
+  std::uint32_t Bits = __builtin_bit_cast(std::uint32_t, Value);
+  std::uint32_t Sign = (Bits >> 16) & 0x8000;
+  std::uint32_t Abs = Bits & 0x7FFFFFFF;
+  std::uint32_t Mag = 0;
+  if (Abs > 0x7F800000) {
+    Mag = 0x7E00 | ((Abs >> 13) & 0x3FF);
+  } else if (Abs >= 0x38800000) {
+    // Normal half range or above: rebias the exponent and round off the 13
+    // extra mantissa bits. A carry out of the mantissa increments the exponent.
+    Abs -= (127 - 15) << 23;
+    Abs += 0xFFF + ((Abs >> 13) & 1);
+    Mag = Abs >> 13 < 0x7C00 ? Abs >> 13 : 0x7C00;
+  } else if (Abs > 0x33000000) {
+    // Above half of denorm_min(): the result is subnormal or min().
+    std::uint32_t Shift = 126 - (Abs >> 23);
+    std::uint32_t Mant = (Abs & 0x7FFFFF) | 0x800000;
+    std::uint32_t Rem = Mant & ((1u << Shift) - 1);
+    std::uint32_t Halfway = 1u << (Shift - 1);
+    Mag = Mant >> Shift;
+    if (Rem > Halfway || (Rem == Halfway && (Mag & 1)))
+      ++Mag;
+  }
+  return static_cast<std::uint16_t>(Sign | Mag);
+}
+
+// Converts to float rounding to odd, so that rounding the result to half gives
+// the same value as rounding Value to half directly.
+template <typename T> constexpr float roundToOddFloat(T Value) {
+  // Out of the float range the conversion is undefined; such values round to
+  // infinity in half anyway.
+  if (Value > 65536 || Value < -65536)
+    return Value > 0 ? 65536.0f : -65536.0f;
+  float Rounded = static_cast<float>(Value);
+  T Back = static_cast<T>(Rounded);
+  if (Back == Value || Value != Value)
+    return Rounded;
+  std::uint32_t Bits = __builtin_bit_cast(std::uint32_t, Rounded);
+  if (Value > 0 ? Back > Value : Back < Value)
+    --Bits;
+  return __builtin_bit_cast(float, Bits | 1);
+}
+#endif
+
 // half is defined in its own namespace so that argument-dependent lookup for
 // half finds only its own operators, as for fundamental floating-point types.
 namespace half_impl {
@@ -62,32 +125,43 @@ public:
 
   /// Constructs a half from \p Value rounded to the nearest representable
   /// half value.
-  constexpr half(float Value) : MData(static_cast<_Float16>(Value)) {}
+  constexpr half(float Value) : MData(toNative(Value)) {}
 
   /// \return the value of this half converted to float without precision loss.
-  constexpr operator float() const { return static_cast<float>(MData); }
+  constexpr operator float() const { return toFloat(MData); }
 
-  constexpr half &operator++() {
-    ++MData;
-    return *this;
-  }
+  constexpr half &operator++() { return *this += 1; }
   constexpr half operator++(int) {
     half Old(*this);
-    ++MData;
+    *this += 1;
     return Old;
   }
-  constexpr half &operator--() {
-    --MData;
-    return *this;
-  }
+  constexpr half &operator--() { return *this -= 1; }
   constexpr half operator--(int) {
     half Old(*this);
-    --MData;
+    *this -= 1;
     return Old;
   }
 
   friend constexpr half operator+(half rhs) { return rhs; }
-  friend constexpr half operator-(half rhs) { return fromNative(-rhs.MData); }
+  friend constexpr half operator-(half rhs) {
+#ifdef __SYCL_DEVICE_ONLY__
+    return fromNative(-rhs.MData);
+#else
+    return fromNative(__builtin_bit_cast(
+        _Float16, static_cast<std::uint16_t>(
+                      __builtin_bit_cast(std::uint16_t, rhs.MData) ^ 0x8000)));
+#endif
+  }
+
+  // Applies a binary operator to the values of two halves: natively in device
+  // code, in float in host code (see halfBitsToFloat).
+#ifdef __SYCL_DEVICE_ONLY__
+#  define _LIBSYCL_HALF_OP(lhs, op, rhs) ((lhs).MData op(rhs).MData)
+#else
+#  define _LIBSYCL_HALF_OP(lhs, op, rhs)                                       \
+    (toFloat((lhs).MData) op toFloat((rhs).MData))
+#endif
 
   // The mixed operators are overloads for exact types rather than a template,
   // so that operands that convert implicitly to these types (enumerations,
@@ -105,17 +179,17 @@ public:
 
 #define _LIBSYCL_GEN_MIXED_OPT(op, T)                                          \
   friend constexpr detail::HalfMixedT<T, half> operator op(half lhs, T rhs) {  \
-    using OpT = detail::HalfMixedT<T, _Float16>;                               \
-    return fromNative(static_cast<OpT>(lhs.MData) op static_cast<OpT>(rhs));   \
+    using OpT = detail::HalfMixedT<T, half>;                                   \
+    return static_cast<OpT>(lhs) op static_cast<OpT>(rhs);                     \
   }                                                                            \
   friend constexpr detail::HalfMixedT<T, half> operator op(T lhs, half rhs) {  \
-    using OpT = detail::HalfMixedT<T, _Float16>;                               \
-    return fromNative(static_cast<OpT>(lhs) op static_cast<OpT>(rhs.MData));   \
+    using OpT = detail::HalfMixedT<T, half>;                                   \
+    return static_cast<OpT>(lhs) op static_cast<OpT>(rhs);                     \
   }
 
 #define _LIBSYCL_GEN_OPT(op)                                                   \
   friend constexpr half operator op(half lhs, half rhs) {                      \
-    return fromNative(lhs.MData op rhs.MData);                                 \
+    return fromNative(toNative(_LIBSYCL_HALF_OP(lhs, op, rhs)));               \
   }                                                                            \
   _LIBSYCL_HALF_MIXED_TYPES(_LIBSYCL_GEN_MIXED_OPT, op)
 
@@ -130,23 +204,21 @@ public:
   // Compound assignment converts the other operand to half first, so that
   // double operands such as literals don't make device code depend on
   // aspect::fp64.
-#define _LIBSYCL_GEN_MIXED_OPT(op, T)                                          \
-  constexpr half &operator op(T rhs) {                                         \
-    MData op static_cast<_Float16>(rhs);                                       \
-    return *this;                                                              \
+#define _LIBSYCL_GEN_MIXED_OPT(op_assign, T)                                   \
+  constexpr half &operator op_assign(T rhs) {                                  \
+    return *this op_assign fromNative(toNative(rhs));                          \
   }
 
-#define _LIBSYCL_GEN_OPT(op)                                                   \
-  constexpr half &operator op(half rhs) {                                      \
-    MData op rhs.MData;                                                        \
-    return *this;                                                              \
+#define _LIBSYCL_GEN_OPT(op, op_assign)                                        \
+  constexpr half &operator op_assign(half rhs) {                               \
+    return *this = *this op rhs;                                               \
   }                                                                            \
-  _LIBSYCL_HALF_MIXED_TYPES(_LIBSYCL_GEN_MIXED_OPT, op)
+  _LIBSYCL_HALF_MIXED_TYPES(_LIBSYCL_GEN_MIXED_OPT, op_assign)
 
-  _LIBSYCL_GEN_OPT(+=)
-  _LIBSYCL_GEN_OPT(-=)
-  _LIBSYCL_GEN_OPT(*=)
-  _LIBSYCL_GEN_OPT(/=)
+  _LIBSYCL_GEN_OPT(+, +=)
+  _LIBSYCL_GEN_OPT(-, -=)
+  _LIBSYCL_GEN_OPT(*, *=)
+  _LIBSYCL_GEN_OPT(/, /=)
 
 #undef _LIBSYCL_GEN_OPT
 #undef _LIBSYCL_GEN_MIXED_OPT
@@ -156,16 +228,16 @@ public:
 #define _LIBSYCL_GEN_MIXED_OPT(op, T)                                          \
   friend constexpr bool operator op(half lhs, T rhs) {                         \
     using OpT = detail::HalfMixedT<T, float>;                                  \
-    return static_cast<OpT>(lhs.MData) op static_cast<OpT>(rhs);               \
+    return static_cast<OpT>(lhs) op static_cast<OpT>(rhs);                     \
   }                                                                            \
   friend constexpr bool operator op(T lhs, half rhs) {                         \
     using OpT = detail::HalfMixedT<T, float>;                                  \
-    return static_cast<OpT>(lhs) op static_cast<OpT>(rhs.MData);               \
+    return static_cast<OpT>(lhs) op static_cast<OpT>(rhs);                     \
   }
 
 #define _LIBSYCL_GEN_OPT(op)                                                   \
   friend constexpr bool operator op(half lhs, half rhs) {                      \
-    return lhs.MData op rhs.MData;                                             \
+    return _LIBSYCL_HALF_OP(lhs, op, rhs);                                     \
   }                                                                            \
   _LIBSYCL_HALF_MIXED_TYPES(_LIBSYCL_GEN_MIXED_OPT, op)
 
@@ -179,6 +251,7 @@ public:
 #undef _LIBSYCL_GEN_OPT
 #undef _LIBSYCL_GEN_MIXED_OPT
 #undef _LIBSYCL_HALF_MIXED_TYPES
+#undef _LIBSYCL_HALF_OP
 
   template <typename CharT, typename Traits>
   friend std::basic_ostream<CharT, Traits> &
@@ -196,17 +269,33 @@ public:
   }
 
 private:
-  // Wraps a _Float16 result without a round trip through float.
-  template <typename T>
-  static constexpr std::conditional_t<std::is_same_v<T, _Float16>, half, T>
-  fromNative(T Value) {
-    if constexpr (std::is_same_v<T, _Float16>) {
-      half Result{};
-      Result.MData = Value;
-      return Result;
-    } else {
-      return Value;
-    }
+  // Wraps a _Float16 value without a round trip through float.
+  static constexpr half fromNative(_Float16 Value) {
+    half Result{};
+    Result.MData = Value;
+    return Result;
+  }
+
+  static constexpr float toFloat(_Float16 Value) {
+#ifdef __SYCL_DEVICE_ONLY__
+    return static_cast<float>(Value);
+#else
+    return detail::halfBitsToFloat(__builtin_bit_cast(std::uint16_t, Value));
+#endif
+  }
+
+  // Rounds Value to the nearest half value.
+  template <typename T> static constexpr _Float16 toNative(T Value) {
+#ifdef __SYCL_DEVICE_ONLY__
+    return static_cast<_Float16>(Value);
+#else
+    if constexpr (std::is_floating_point_v<T> && sizeof(T) > sizeof(float))
+      return toNative(detail::roundToOddFloat(Value));
+    else
+      // Exact for integers below 2^24; larger ones round to infinity in half.
+      return __builtin_bit_cast(
+          _Float16, detail::floatToHalfBits(static_cast<float>(Value)));
+#endif
   }
 
   friend std::numeric_limits<half>;

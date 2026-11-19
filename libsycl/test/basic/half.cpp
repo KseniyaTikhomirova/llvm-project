@@ -182,6 +182,13 @@ void testOperators() {
   One += 0.00048828125f + 0.0000001f;
   assert(One == 1);
 
+  // A double operand rounds to half directly: 1 + 2^-11 + 2^-40 is above the
+  // tie and rounds up. Rounded to float first, it would become the tie and
+  // round to 1.
+  half Zero = 0.0f;
+  Zero += 1.00048828125 + 0x1p-40;
+  assert(Zero == 1.0009765625f);
+
   // Operands that convert implicitly to an arithmetic type.
   half FromClass = 1.0f;
   FromClass += half_test::ConvertsToInt{};
