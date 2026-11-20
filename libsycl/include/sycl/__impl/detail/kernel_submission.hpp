@@ -43,26 +43,59 @@ void checkNDRangeAndThrow(const sycl::nd_range<Dims> &ExecutionRange) {
                           "evenly divisible by local size.");
 }
 
+/// The forms of kernel invocation that SYCL 2020 distinguishes when it
+/// restricts the arguments of a kernel.
+enum class KernelLaunchKind { SingleTask, Range, NDRange };
+
+/// The kernel object passed to a kernel entry point. Carries the form of the
+/// invocation to sycl_kernel_launch, which only receives the entry point's
+/// parameters.
+template <typename KernelType, KernelLaunchKind Kind> struct KernelObject {
+  static constexpr KernelLaunchKind LaunchKind = Kind;
+  KernelType Func;
+};
+
+/// Rejects local accessors in kernels that are not invoked with an nd_range.
+///
+/// \throw sycl::exception with sycl::errc::kernel_argument if a kernel that
+/// is not invoked with an nd_range has local accessors, as SYCL 2020 4.7.6.11
+/// requires.
+template <typename KernelObjT, std::size_t NumLocalAccessors>
+void checkLocalAccessorUse() {
+  if constexpr (NumLocalAccessors > 0) {
+    if constexpr (KernelObjT::LaunchKind != KernelLaunchKind::NDRange)
+      throw sycl::exception(sycl::make_error_code(sycl::errc::kernel_argument),
+                            "a local accessor can only be used in a kernel "
+                            "invoked with an nd_range");
+  }
+}
+
 template <typename DerivedT> class KernelSubmissionBase {
 protected:
+  template <typename KernelName, typename KernelType>
+  void submitSingleTask(const KernelType &KernelFunc) {
+    singleTaskEntryPoint<KernelName>(
+        KernelObject<KernelType, KernelLaunchKind::SingleTask>{KernelFunc});
+  }
+
   // TODO: take the kernel object by const reference in both entry points once
   // the compiler passes a mutable device kernel object to
   // sycl_reify_kernel_parameters for a const one.
   // Until then the by-value parameter keeps it mutable on device.
-  template <typename KernelName, typename KernelType>
+  template <typename KernelName, typename KernelObjT>
 #ifdef SYCL_LANGUAGE_VERSION
   [[clang::sycl_kernel_entry_point(KernelName)]]
 #endif
-  void submitSingleTask(KernelType KernelFunc) {
-    KernelFunc();
+  void singleTaskEntryPoint(KernelObjT Kernel) {
+    Kernel.Func();
   }
 
-  template <typename KernelName, typename ElementType, typename KernelType>
+  template <typename KernelName, typename ElementType, typename KernelObjT>
 #ifdef SYCL_LANGUAGE_VERSION
   [[clang::sycl_kernel_entry_point(KernelName)]]
 #endif
-  void submitParallelFor(KernelType KernelFunc) {
-    KernelFunc(detail::Builder::getElement(detail::declptr<ElementType>()));
+  void parallelForEntryPoint(KernelObjT Kernel) {
+    Kernel.Func(detail::Builder::getElement(detail::declptr<ElementType>()));
   }
 
   // TODO: handle arrays of local accessors.
@@ -73,10 +106,12 @@ protected:
                   "callable object passed to kernel invocation by the user.");
 
     return [this, &KernelArgs...](const auto &...LocalAccessors) {
+      auto &KernelObj = std::get<0>(std::tie(KernelArgs...));
+      checkLocalAccessorUse<std::decay_t<decltype(KernelObj)>,
+                            sizeof...(LocalAccessors)>();
+
       const std::size_t LocalMemSize =
           LocalAccessorReifier::getBlockSize(LocalAccessors...);
-
-      auto &KernelObj = std::get<0>(std::tie(KernelArgs...));
       static_cast<DerivedT *>(this)->submitKernelImpl(
           detail::getDeviceKernelInfo<typename KI::kernel_name>(
               KI::kernel_entry_point_name),
@@ -133,8 +168,11 @@ protected:
 
     using NameT =
         typename detail::get_kernel_name_t<KernelName, KernelType>::name;
-    return submitParallelFor<NameT, TransformedLambdaArgType, KernelType>(
-        std::forward<Rest>(RestArgs)...);
+    constexpr KernelLaunchKind Kind = IsNdRangeSubmission
+                                          ? KernelLaunchKind::NDRange
+                                          : KernelLaunchKind::Range;
+    return parallelForEntryPoint<NameT, TransformedLambdaArgType>(
+        KernelObject<KernelType, Kind>{std::forward<Rest>(RestArgs)...});
   }
 };
 
