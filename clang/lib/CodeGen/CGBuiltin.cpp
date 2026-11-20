@@ -24,6 +24,7 @@
 #include "ConstantEmitter.h"
 #include "PatternInit.h"
 #include "TargetInfo.h"
+#include "clang/AST/InferAlloc.h"
 #include "clang/AST/OSLog.h"
 #include "clang/AST/StmtVisitor.h"
 #include "clang/Basic/DiagnosticFrontend.h"
@@ -4892,7 +4893,10 @@ RValue CodeGenFunction::EmitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
   }
 
   case Builtin::BI__builtin_infer_alloc_token: {
-    llvm::MDNode *MDN = buildAllocToken(E);
+    // The builtin has no enclosing allocation whose placement-new uses could
+    // be inspected, so only the call-based inference applies.
+    llvm::MDNode *MDN = buildAllocToken(
+        infer_alloc::inferPossibleType(E, getContext(), CurCast));
     llvm::Value *MDV = MetadataAsValue::get(getLLVMContext(), MDN);
     llvm::Function *F =
         CGM.getIntrinsic(llvm::Intrinsic::alloc_token_id, {IntPtrTy});
@@ -6900,6 +6904,37 @@ RValue CodeGenFunction::EmitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
         cast<DeclRefExpr>(E->getArg(0)->IgnoreImpCasts())->getDecl());
     auto Str = CGM.GetAddrOfConstantCString(Name, "");
     return RValue::get(Str.getPointer());
+  }
+  case Builtin::BI__builtin_sycl_dynamic_local_memory: {
+    llvm::Type *RetTy = ConvertType(E->getType());
+    // Dynamic local memory only exists on the device; host code never reaches
+    // a kernel's reification, so return a null pointer.
+    if (!getLangOpts().SYCLIsDevice)
+      return RValue::get(
+          llvm::ConstantPointerNull::get(cast<llvm::PointerType>(RetTy)));
+
+    StringRef Name = "__sycl_dynamic_local_memory";
+    llvm::GlobalVariable *GV = CGM.getModule().getNamedGlobal(Name);
+    if (!GV) {
+      unsigned AS = getContext().getTargetAddressSpace(LangAS::sycl_local);
+      GV = new llvm::GlobalVariable(
+          CGM.getModule(), llvm::ArrayType::get(Int8Ty, 0),
+          /*isConstant=*/false, llvm::GlobalValue::ExternalLinkage,
+          /*Initializer=*/nullptr, Name, /*InsertBefore=*/nullptr,
+          llvm::GlobalValue::NotThreadLocal, AS);
+      // This global has default alignment. For SPIR-V with Level Zero, the
+      // SPIRVLowerDynamicLocalMemory pass adds a local pointer parameter to
+      // each kernel. It replaces uses of __sycl_dynamic_local_memory (looks
+      // for unsized arrays in local memory) with the value of the parameter,
+      // so the global's alignment has no effect. Other targets (e.g. AMDGPU,
+      // NVPTX) would align the start of the dynamic local memory block based
+      // on this global. This however may not be what the local accessors
+      // require. The SYCL runtime does not currently support these targets. If
+      // support is added, it should handle any alignment the local accessors
+      // require.
+      // FIXME: Should the builtin guarantee some alignment instead?
+    }
+    return RValue::get(GV);
   }
   }
 

@@ -83,6 +83,10 @@ public:
   void CheckSYCLExternalFunctionDecl(FunctionDecl *FD);
   void CheckSYCLEntryPointFunctionDecl(FunctionDecl *FD);
 
+  /// Checks a call to __builtin_sycl_dynamic_local_memory and sets its type.
+  /// Returns true on error.
+  bool checkBuiltinDynamicLocalMemory(CallExpr *TheCall);
+
   /// GetSYCLKernelInfoClassTemplate builds a class template used to pass SYCL
   /// kernel information in synthesized calls to SYCL runtime library functions.
   /// The class template has an unspecified name, is an incomplete class
