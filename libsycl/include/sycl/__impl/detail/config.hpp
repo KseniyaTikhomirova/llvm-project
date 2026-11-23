@@ -83,11 +83,13 @@ static_assert(__cplusplus >= 201703L, "Libsycl requires C++17 or later.");
 #  define _LIBSYCL_REIFIED_KERNEL_PARAMETER
 #endif
 
-#ifdef __SYCL_DEVICE_ONLY__
+// Applied on host as well, so that overloads on the address space resolve the
+// same way on host and device.
+#ifdef SYCL_LANGUAGE_VERSION
 #  define _LIBSYCL_LOCAL_AS [[clang::sycl_local]]
 #else
 #  define _LIBSYCL_LOCAL_AS
-#endif // __SYCL_DEVICE_ONLY__
+#endif // SYCL_LANGUAGE_VERSION
 
 #if defined(_WIN32) && !defined(_DLL) && !defined(__SYCL_DEVICE_ONLY__)
 // When built for use with the MSVC C++ standard library, libsycl requires

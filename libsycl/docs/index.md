@@ -138,6 +138,14 @@ which doesn't currently support Windows.
 
   - kernel instantiating on host (debugging purposes)
 
+- `accessor`: only the deprecated specialization for `target::local` is implemented; the other targets and `access_mode::atomic` for `target::local` (requires the deprecated `atomic` class) are not implemented
+
+- `local_accessor`:
+
+  - `get_pointer`, `get_multi_ptr` and `accessor_ptr` are not implemented, to add once `multi_ptr` is supported
+  - arrays of local accessors in a kernel object are not supported
+  - the local memory block is only guaranteed to be 32-byte aligned, so a `DataT` with a stricter alignment may get a misaligned region
+
 - `property_list`: to fully implement and integrate with existing SYCL runtime classes supporting it
 
 - usm allocations:

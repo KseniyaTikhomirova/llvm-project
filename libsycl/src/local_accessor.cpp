@@ -15,8 +15,8 @@ _LIBSYCL_BEGIN_NAMESPACE_SYCL
 
 namespace detail {
 
-std::uint64_t createLocalAccessorId() {
-  // 0 is reserved for default constructed accessors.
+std::uint64_t createLocalAccessorId() noexcept {
+  // 0 is the identity of accessors constructed on device.
   static std::atomic<std::uint64_t> NextId{1};
   return NextId.fetch_add(1, std::memory_order_relaxed);
 }

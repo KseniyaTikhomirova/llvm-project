@@ -80,6 +80,7 @@ void checkAll() {
   checkAllDims<const int>();
   checkAllDims<double>();
 
+  checkDeprecatedAccessor<0>();
   checkDeprecatedAccessor<1>();
   checkDeprecatedAccessor<2>();
   checkDeprecatedAccessor<3>();
@@ -93,6 +94,50 @@ void checkAll() {
   static_assert(std::is_default_constructible_v<sycl::local_accessor<int, 1>>);
   static_assert(
       !std::is_constructible_v<sycl::local_accessor<int, 1>, sycl::handler &>);
+}
+
+// The SYCL 1.2.1 spellings of the template arguments name the same type.
+// expected-warning@+4 {{'mode' is deprecated: use 'sycl::access_mode' instead}}
+// expected-warning@+3 {{'target' is deprecated: use 'sycl::target' instead}}
+// expected-warning@+2 {{'local' is deprecated: use 'local_accessor' instead}}
+using LegacyAccT = sycl::accessor<
+    int, 2, sycl::access::mode::read_write, sycl::access::target::local,
+    // expected-warning@+2 {{'placeholder' is deprecated: placeholder accessors are deprecated in SYCL 2020}}
+    // expected-warning@+1 {{'false_t' is deprecated: placeholder accessors are deprecated in SYCL 2020}}
+    sycl::access::placeholder::false_t>;
+// expected-warning@+1 {{'local' is deprecated: use 'local_accessor' instead}}
+constexpr sycl::target LocalTarget = sycl::target::local;
+
+template <int Dims>
+using DeprecatedAccT =
+    sycl::accessor<int, Dims, sycl::access_mode::read_write, LocalTarget>;
+static_assert(std::is_same_v<LegacyAccT, DeprecatedAccT<2>>);
+
+// SYCL 2020 defines no properties for a local accessor.
+static_assert(!sycl::is_property_of_v<sycl::property::queue::in_order,
+                                      sycl::local_accessor<int, 1>>);
+static_assert(!sycl::is_property_of_v<sycl::property::queue::in_order,
+                                      DeprecatedAccT<1>>);
+
+// Element access in a kernel yields generic references, although the
+// accessors point to local memory there.
+void checkTypesInKernel(sycl::handler &CGH) {
+  sycl::local_accessor<int, 1> Local(1, CGH);
+  sycl::local_accessor<const int, 2> ConstLocal({1, 1}, CGH);
+  DeprecatedAccT<0> Deprecated0(CGH);
+  DeprecatedAccT<1> Deprecated1(1, CGH);
+  DeprecatedAccT<3> Deprecated3({1, 1, 1}, CGH);
+  CGH.parallel_for(sycl::nd_range<1>{1, 1}, [=](sycl::nd_item<1>) {
+    static_assert(std::is_same_v<decltype(Local[0]), int &>);
+    static_assert(std::is_same_v<decltype(*Local.begin()), int &>);
+    static_assert(std::is_same_v<decltype(ConstLocal[0][0]), const int &>);
+    static_assert(
+        std::is_same_v<decltype(ConstLocal[sycl::id<2>{}]), const int &>);
+    static_assert(std::is_convertible_v<decltype(Deprecated0), int &>);
+    static_assert(std::is_same_v<decltype(Deprecated1[0]), int &>);
+    static_assert(std::is_same_v<decltype(Deprecated3[0][0][0]), int &>);
+    static_assert(std::is_same_v<decltype(Deprecated3[sycl::id<3>{}]), int &>);
+  });
 }
 
 void checkMaxSizeDeprecated(const sycl::local_accessor<int, 1> &Acc) {

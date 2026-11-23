@@ -90,9 +90,16 @@ TEST(LocalAccessor, CopiesAreEqualAndHashEqual) {
   EXPECT_NE(HashT{}(Acc1), HashT{}(Acc3));
 }
 
-TEST(LocalAccessor, DefaultConstructedAreEqual) {
+// SYCL 2020 4.5.2: instances that are not copies of each other are not equal,
+// default constructed ones included.
+TEST(LocalAccessor, DefaultConstructedAreNotEqual) {
+  using HashT = std::hash<local_accessor<int, 1>>;
   local_accessor<int, 1> Acc1, Acc2;
-  EXPECT_EQ(Acc1, Acc2);
+  const local_accessor<int, 1> Copy = Acc1;
+  EXPECT_NE(Acc1, Acc2);
+  EXPECT_NE(HashT{}(Acc1), HashT{}(Acc2));
+  EXPECT_EQ(Acc1, Copy);
+  EXPECT_EQ(HashT{}(Acc1), HashT{}(Copy));
 }
 
 TEST(LocalAccessor, ConvertsToConstDataT) {
@@ -176,6 +183,43 @@ TEST(DeprecatedLocalAccessor, SizeQueriesAndEquality) {
   EXPECT_EQ(Default.get_count(), 0u);
 }
 
+TEST(DeprecatedLocalAccessor, ZeroDimSizeQueries) {
+  using AccT = accessor<double, 0, access_mode::read_write, target::local>;
+  mock::MockWrapper Mock;
+  queue Q;
+  AccT Acc;
+  Q.submit([&](handler &CGH) { Acc = AccT(CGH); });
+
+  EXPECT_FALSE(Acc.empty());
+  EXPECT_EQ(Acc.get_count(), 1u);
+  EXPECT_EQ(Acc.get_size(), sizeof(double));
+}
+
+TEST(DeprecatedLocalAccessor, AcceptsEmptyPropertyList) {
+  using AccT = accessor<int, 1, access_mode::read_write, target::local>;
+  mock::MockWrapper Mock;
+  queue Q;
+  AccT Acc;
+  Q.submit([&](handler &CGH) { Acc = AccT(4, CGH, property_list{}); });
+  EXPECT_EQ(Acc.get_count(), 4u);
+  EXPECT_FALSE(Acc.has_property<property::queue::in_order>());
+  EXPECT_THROW(Acc.get_property<property::queue::in_order>(), exception);
+}
+
+TEST(DeprecatedLocalAccessor, RejectsPropertyOfAnotherClass) {
+  using AccT = accessor<int, 1, access_mode::read_write, target::local>;
+  mock::MockWrapper Mock;
+  queue Q;
+  Q.submit([&](handler &CGH) {
+    try {
+      AccT Acc(1, CGH, {property::queue::in_order{}});
+      FAIL() << "a queue property must be rejected by a local accessor";
+    } catch (const exception &E) {
+      EXPECT_EQ(E.code(), make_error_code(errc::invalid));
+    }
+  });
+}
+
 // The tests below check the size of the work-group local memory block that is
 // requested at launch for the local accessors of a kernel. The device lays out
 // the accessors in the same way, so the block size also reflects the alignment
@@ -191,6 +235,13 @@ struct KernelData {
   int Value;
 };
 
+// getDeviceKernelInfo<KernelName> caches the kernel info for the whole process
+// and unregistering the binary destroys it, so the registration must outlive
+// every launch of LocalMemKernel.
+static void registerLocalMemKernel() {
+  static unittests::ScopedKernelRegistration Registration{"LocalMemKernel"};
+}
+
 template <detail::KernelLaunchKind Kind>
 using KernelObjectT = detail::KernelObject<KernelData, Kind>;
 
@@ -201,7 +252,7 @@ template <typename... AccTs>
 static std::size_t launchAndCaptureLocalMemSize(mock::MockWrapper &Mock,
                                                 detail::MockQueue &Q,
                                                 const AccTs &...Accs) {
-  unittests::ScopedKernelRegistration Registration{"LocalMemKernel"};
+  registerLocalMemKernel();
   std::size_t Captured = 0;
   EXPECT_CALL(Mock.get(), olLaunchKernel(_, _, _, _, _, 1, _, _))
       .WillOnce([&Captured](ol_queue_handle_t, ol_device_handle_t,
@@ -268,6 +319,55 @@ TEST(LocalAccessorLaunch, EmptyAccessorsOnlyAddAlignment) {
             alignof(int));
 }
 
+// Copies of one accessor share a region, distinct accessors of the same size
+// do not.
+TEST(LocalAccessorLaunch, CopiesShareRegion) {
+  mock::MockWrapper Mock;
+  detail::MockQueue Q;
+  local_accessor<int, 1> Acc, Other;
+  local_accessor<char, 1> Byte;
+  Q.submit([&](handler &CGH) {
+    Acc = local_accessor<int, 1>(4, CGH);
+    Other = local_accessor<int, 1>(4, CGH);
+    Byte = local_accessor<char, 1>(1, CGH);
+  });
+  const local_accessor<int, 1> Copy = Acc;
+  const local_accessor<const int, 1> ConstCopy = Acc;
+  constexpr std::size_t RegionSize = 4 * sizeof(int);
+
+  EXPECT_EQ(launchAndCaptureLocalMemSize(Mock, Q, Acc, Copy), RegionSize);
+  EXPECT_EQ(launchAndCaptureLocalMemSize(Mock, Q, Acc, ConstCopy, Copy),
+            RegionSize);
+  EXPECT_EQ(launchAndCaptureLocalMemSize(Mock, Q, Acc, Other), 2 * RegionSize);
+  // A copy after another accessor reuses the earlier region and appends
+  // nothing, so the block ends with the region of Other.
+  EXPECT_EQ(launchAndCaptureLocalMemSize(Mock, Q, Acc, Byte, Copy, Other),
+            RegionSize + alignof(int) + RegionSize);
+}
+
+// Distinct default constructed accessors get regions of their own, each
+// aligned for its DataT, and a copy of one shares its region.
+TEST(LocalAccessorLaunch, DefaultConstructedAreDeduplicatedLikeOthers) {
+  mock::MockWrapper Mock;
+  detail::MockQueue Q;
+  local_accessor<char, 1> Byte1, Byte2;
+  Q.submit([&](handler &CGH) {
+    Byte1 = local_accessor<char, 1>(1, CGH);
+    Byte2 = local_accessor<char, 1>(1, CGH);
+  });
+  local_accessor<int, 1> DefaultInt;
+  local_accessor<double, 1> DefaultDouble;
+  const local_accessor<int, 1> DefaultIntCopy = DefaultInt;
+  EXPECT_EQ(
+      launchAndCaptureLocalMemSize(Mock, Q, Byte1, DefaultInt, DefaultDouble),
+      alignof(double));
+  // Byte2 ends the block at alignof(int) + 1. The copy reuses the region of
+  // DefaultInt, a new region would be aligned past the end of Byte2.
+  EXPECT_EQ(launchAndCaptureLocalMemSize(Mock, Q, Byte1, DefaultInt, Byte2,
+                                         DefaultIntCopy),
+            alignof(int) + 1);
+}
+
 TEST(LocalAccessorLaunch, DeprecatedAccessorTakesMemory) {
   mock::MockWrapper Mock;
   detail::MockQueue Q;
@@ -281,22 +381,26 @@ TEST(LocalAccessorLaunch, DeprecatedAccessorTakesMemory) {
   });
   EXPECT_EQ(launchAndCaptureLocalMemSize(Mock, Q, Scalar, Deprecated),
             alignof(int) + 3 * sizeof(int));
+  const DeprecatedAccT Copy = Deprecated;
+  EXPECT_EQ(launchAndCaptureLocalMemSize(Mock, Q, Deprecated, Copy),
+            3 * sizeof(int));
 }
 
 // SYCL 2020 4.7.6.11: a local accessor must not be used in a kernel invoked
-// with single_task or with a parallel_for taking a range.
-template <detail::KernelLaunchKind Kind>
+// with single_task or with a parallel_for taking a range. SYCL 2020 4.7.6.9.4.7
+// gives the deprecated accessor with target::local the same restrictions.
+template <detail::KernelLaunchKind Kind, typename AccT>
 static void expectKernelArgumentError() {
   mock::MockWrapper Mock;
   detail::MockQueue Q;
-  unittests::ScopedKernelRegistration Registration{"LocalMemKernel"};
-  local_accessor<int, 1> Default;
-  local_accessor<int, 1> Acc;
-  Q.submit([&](handler &CGH) { Acc = local_accessor<int, 1>(1, CGH); });
+  registerLocalMemKernel();
+  AccT Default;
+  AccT Acc;
+  Q.submit([&](handler &CGH) { Acc = AccT(1, CGH); });
 
   EXPECT_CALL(Mock.get(), olLaunchKernel(_, _, _, _, _, _, _, _)).Times(0);
   KernelObjectT<Kind> Kernel{};
-  for (const local_accessor<int, 1> &Used : {Acc, Default}) {
+  for (const AccT &Used : {Acc, Default}) {
     try {
       Q.sycl_kernel_launch<LocalMemKernelInfo>(Kernel)(Used);
       ADD_FAILURE() << "the launch must throw";
@@ -306,18 +410,32 @@ static void expectKernelArgumentError() {
   }
 }
 
+using LocalAccT = local_accessor<int, 1>;
+using DeprecatedLocalAccT =
+    accessor<int, 1, access_mode::read_write, target::local>;
+
 TEST(LocalAccessorLaunch, SingleTaskRejectsLocalAccessor) {
-  expectKernelArgumentError<detail::KernelLaunchKind::SingleTask>();
+  expectKernelArgumentError<detail::KernelLaunchKind::SingleTask, LocalAccT>();
 }
 
 TEST(LocalAccessorLaunch, RangeRejectsLocalAccessor) {
-  expectKernelArgumentError<detail::KernelLaunchKind::Range>();
+  expectKernelArgumentError<detail::KernelLaunchKind::Range, LocalAccT>();
+}
+
+TEST(LocalAccessorLaunch, SingleTaskRejectsDeprecatedLocalAccessor) {
+  expectKernelArgumentError<detail::KernelLaunchKind::SingleTask,
+                            DeprecatedLocalAccT>();
+}
+
+TEST(LocalAccessorLaunch, RangeRejectsDeprecatedLocalAccessor) {
+  expectKernelArgumentError<detail::KernelLaunchKind::Range,
+                            DeprecatedLocalAccT>();
 }
 
 TEST(LocalAccessorLaunch, KernelWithoutLocalAccessorIsAccepted) {
   mock::MockWrapper Mock;
   detail::MockQueue Q;
-  unittests::ScopedKernelRegistration Registration{"LocalMemKernel"};
+  registerLocalMemKernel();
   EXPECT_CALL(Mock.get(), olLaunchKernel(_, _, _, _, _, 1, _, _)).Times(1);
   KernelObjectT<detail::KernelLaunchKind::SingleTask> Kernel{};
   EXPECT_NO_THROW(Q.sycl_kernel_launch<LocalMemKernelInfo>(Kernel)());

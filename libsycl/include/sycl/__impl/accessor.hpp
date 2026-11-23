@@ -31,8 +31,9 @@ _LIBSYCL_BEGIN_NAMESPACE_SYCL
 
 class handler;
 
-/// Provides access to a SYCL memory object from within a kernel or a host
-/// task.
+/// Provides access to data in a buffer from within a command.
+///
+/// \sa SYCL 2020 4.7.6.9. Buffer accessor for commands.
 // TODO: only the target::local specialization below is defined so far, the
 // primary template is incomplete.
 template <typename DataT, int Dimensions = 1,
@@ -43,14 +44,13 @@ template <typename DataT, int Dimensions = 1,
           access::placeholder IsPlaceholder = access::placeholder::false_t>
 class accessor;
 
-/// Provides access to work-group local memory allocated for a kernel.
+/// Provides access to work-group local memory allocated for a kernel, with
+/// the same semantics and restrictions as local_accessor.
 ///
 /// This is the SYCL 1.2.1 form of a local accessor, deprecated in SYCL 2020 in
-/// favour of sycl::local_accessor. Naming target::local reports the
-/// deprecation, so the specialization itself is not marked deprecated.
+/// favour of sycl::local_accessor.
 ///
-/// \sa detail::LocalAccessorBase for the shared implementation and for the
-/// host and device representation of a local accessor.
+/// \sa SYCL 2020 4.7.6.9.4.7. Accessor specialization with target::local.
 template <typename DataT, int Dimensions, access_mode AccessMode,
           access::placeholder IsPlaceholder>
 class _LIBSYCL_REIFIED_KERNEL_PARAMETER
@@ -66,10 +66,11 @@ class _LIBSYCL_REIFIED_KERNEL_PARAMETER
                 "available for access_mode::read_write and "
                 "access_mode::atomic");
 
+  // TODO: support access_mode::atomic once the deprecated sycl::atomic class
+  // is implemented.
   static_assert(AccessMode != access_mode::atomic,
-                "access_mode::atomic is not supported for a local accessor: "
-                "sycl::atomic was removed in SYCL 2020, use sycl::atomic_ref "
-                "instead");
+                "access_mode::atomic is not supported yet for the accessor "
+                "specialization with target::local");
 
   static_assert(!std::is_const_v<DataT>,
                 "a const qualified DataT is not allowed for the accessor "
@@ -80,14 +81,40 @@ public:
   using value_type = typename Base::value_type;
   using size_type = typename Base::size_type;
 
+  /// Constructs an empty accessor.
   accessor() = default;
 
+  /// Constructs an accessor instance for accessing local memory of a single
+  /// DataT element within a SYCL kernel function on the queue associated with
+  /// \p commandGroupHandlerRef.
+  ///
+  /// Available only when (Dimensions == 0).
+  ///
+  /// \param commandGroupHandlerRef is the handler of the command group that
+  /// uses the accessor.
+  /// \param propList is a list of properties for accessor construction.
+  /// \throw sycl::exception with sycl::errc::invalid if \p propList contains a
+  /// property that cannot be applied to a local accessor.
   template <int Dims = Dimensions, std::enable_if_t<Dims == 0, bool> = true>
-  accessor(handler &, const property_list &propList = {})
+  accessor([[maybe_unused]] handler &commandGroupHandlerRef,
+           const property_list &propList = {})
       : Base(range<1>{1}, propList) {}
 
+  /// Constructs an accessor instance for accessing local memory of an array of
+  /// DataT elements within a SYCL kernel function on the queue associated
+  /// with \p commandGroupHandlerRef.
+  ///
+  /// Available only when (Dimensions > 0).
+  ///
+  /// \param allocationSize is the number of elements in the array.
+  /// \param commandGroupHandlerRef is the handler of the command group that
+  /// uses the accessor.
+  /// \param propList is a list of properties for accessor construction.
+  /// \throw sycl::exception with sycl::errc::invalid if \p propList contains a
+  /// property that cannot be applied to a local accessor.
   template <int Dims = Dimensions, std::enable_if_t<(Dims > 0), bool> = true>
-  accessor(range<Dimensions> allocationSize, handler &,
+  accessor(range<Dimensions> allocationSize,
+           [[maybe_unused]] handler &commandGroupHandlerRef,
            const property_list &propList = {})
       : Base(allocationSize, propList) {}
 
@@ -99,8 +126,12 @@ public:
     return !(Lhs == Rhs);
   }
 
+  /// \return the size in bytes of the accessor's local memory allocation, per
+  /// work-group.
   std::size_t get_size() const noexcept { return this->byte_size(); }
 
+  /// \return the number of elements in the accessor's local memory
+  /// allocation, per work-group.
   std::size_t get_count() const noexcept { return this->size(); }
 
 private:

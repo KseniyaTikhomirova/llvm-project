@@ -297,14 +297,71 @@ static bool testDeprecatedAccessor(sycl::queue &Q) {
   return check(Ok, "deprecated accessor with target::local");
 }
 
+static bool testDeprecatedAccessorDims(sycl::queue &Q) {
+  using Scalar = sycl::accessor<int, 0, sycl::access_mode::read_write,
+                                sycl::target::local>;
+  using Array2D = sycl::accessor<int, 2, sycl::access_mode::read_write,
+                                 sycl::target::local>;
+  int *Out = sycl::malloc_shared<int>(3, Q);
+  Q.submit([&](sycl::handler &CGH) {
+     Scalar Local0(CGH);
+     Array2D Local2(sycl::range<2>(2, 3), CGH);
+     CGH.parallel_for(sycl::nd_range<1>{1, 1}, [=](sycl::nd_item<1>) {
+       int &Ref = Local0;
+       Ref = 5;
+       for (std::size_t I = 0; I < 2; ++I)
+         for (std::size_t J = 0; J < 3; ++J)
+           Local2[I][J] = static_cast<int>(I * 10 + J);
+       Out[0] = Local0;
+       Out[1] = Local2[sycl::id<2>(1, 2)];
+       Out[2] = static_cast<int>(Local2.get_range()[1]);
+     });
+   }).wait();
+
+  const bool Ok = Out[0] == 5 && Out[1] == 12 && Out[2] == 3;
+  sycl::free(Out, Q);
+  return check(Ok, "0- and 2-dimensional deprecated accessor");
+}
+
+// SYCL 2020 4.5.2: copies of an accessor in one kernel object must refer to
+// the same memory.
+struct TwoCopiesFunctor {
+  sycl::local_accessor<int, 1> Writer;
+  sycl::local_accessor<const int, 1> Reader;
+  int *Out;
+  void operator()(sycl::nd_item<1> It) const {
+    const std::size_t Lid = It.get_local_id(0);
+    Writer[Lid] = static_cast<int>(Lid) + 1;
+    sycl::group_barrier(It.get_group());
+    Out[It.get_global_id(0)] = Reader[LocalSize - 1 - Lid];
+  }
+};
+
+static bool testCopiesShareMemory(sycl::queue &Q) {
+  int *Out = sycl::malloc_shared<int>(LocalSize, Q);
+  Q.submit([&](sycl::handler &CGH) {
+     sycl::local_accessor<int, 1> Local(LocalSize, CGH);
+     CGH.parallel_for(sycl::nd_range<1>{LocalSize, LocalSize},
+                      TwoCopiesFunctor{Local, Local, Out});
+   }).wait();
+
+  bool Ok = true;
+  for (std::size_t I = 0; I < LocalSize; ++I)
+    Ok &= Out[I] == static_cast<int>(LocalSize - I);
+  sycl::free(Out, Q);
+  return check(Ok, "copies share memory");
+}
+
 // SYCL 2020 4.7.6.11: submitting a kernel that uses a local accessor with
-// single_task or with a parallel_for taking a range must throw.
-template <typename SubmitT>
+// single_task or with a parallel_for taking a range must throw. SYCL 2020
+// 4.7.6.9.4.7 gives the deprecated accessor with target::local the same
+// restrictions.
+template <typename AccT, typename SubmitT>
 static bool expectKernelArgumentError(sycl::queue &Q, SubmitT Submit,
                                       const char *Case) {
   try {
     Q.submit([&](sycl::handler &CGH) {
-      sycl::local_accessor<int, 1> Local(1, CGH);
+      AccT Local(1, CGH);
       Submit(CGH, Local);
     });
   } catch (const sycl::exception &E) {
@@ -314,19 +371,23 @@ static bool expectKernelArgumentError(sycl::queue &Q, SubmitT Submit,
   return check(false, Case);
 }
 
-static bool testKernelArgumentErrors(sycl::queue &Q) {
-  bool Ok = expectKernelArgumentError(
+template <typename AccT> class SingleTaskKernel;
+
+template <typename AccT>
+static bool testKernelArgumentErrors(sycl::queue &Q, const char *SingleTaskCase,
+                                     const char *RangeCase) {
+  bool Ok = expectKernelArgumentError<AccT>(
       Q,
-      [](sycl::handler &CGH, sycl::local_accessor<int, 1> Local) {
-        CGH.single_task([=]() { (void)Local; });
+      [](sycl::handler &CGH, AccT Local) {
+        CGH.single_task<SingleTaskKernel<AccT>>([=]() { (void)Local; });
       },
-      "local accessor in single_task");
-  Ok &= expectKernelArgumentError(
+      SingleTaskCase);
+  Ok &= expectKernelArgumentError<AccT>(
       Q,
-      [](sycl::handler &CGH, sycl::local_accessor<int, 1> Local) {
+      [](sycl::handler &CGH, AccT Local) {
         CGH.parallel_for(sycl::range<1>{1}, [=](sycl::id<1>) { (void)Local; });
       },
-      "local accessor in parallel_for with a range");
+      RangeCase);
   return Ok;
 }
 
@@ -348,7 +409,15 @@ int main() {
   Ok &= testDefaultConstructed(Q);
   Ok &= testAlignment(Q);
   Ok &= testDeprecatedAccessor(Q);
-  Ok &= testKernelArgumentErrors(Q);
+  Ok &= testDeprecatedAccessorDims(Q);
+  Ok &= testCopiesShareMemory(Q);
+  Ok &= testKernelArgumentErrors<sycl::local_accessor<int, 1>>(
+      Q, "local accessor in single_task",
+      "local accessor in parallel_for with a range");
+  Ok &= testKernelArgumentErrors<sycl::accessor<
+      int, 1, sycl::access_mode::read_write, sycl::target::local>>(
+      Q, "deprecated local accessor in single_task",
+      "deprecated local accessor in parallel_for with a range");
 
   return Ok ? 0 : 1;
 }

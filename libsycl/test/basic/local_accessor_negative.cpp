@@ -16,7 +16,7 @@ void testDeprecatedAccessorModes(sycl::handler &CGH) {
   sycl::accessor<int, 1, sycl::access_mode::read, sycl::target::local> Read(
       1, CGH);
 
-  // expected-error@*:* {{access_mode::atomic is not supported for a local accessor}}
+  // expected-error@*:* {{access_mode::atomic is not supported yet for the accessor specialization with target::local}}
   sycl::accessor<int, 1, sycl::access_mode::atomic, sycl::target::local> Atomic(
       1, CGH);
 
@@ -42,6 +42,25 @@ void testDimensionGatedAPI(sycl::handler &CGH) {
 
   // expected-error@+1 {{no matching constructor}}
   sycl::local_accessor<int, 1> NoSize(CGH);
+}
+
+void testDeprecatedDimensionGatedAPI(sycl::handler &CGH) {
+  sycl::accessor<int, 0, sycl::access_mode::read_write, sycl::target::local>
+      Scalar(CGH);
+  // expected-error@+1 {{no matching member function for call to 'get_range'}}
+  (void)Scalar.get_range();
+  // expected-error@+1 {{no viable overloaded operator[]}}
+  (void)Scalar[0];
+
+  sycl::accessor<int, 1, sycl::access_mode::read_write, sycl::target::local>
+      Array(1, CGH);
+  // expected-error@+1 {{no viable conversion}}
+  int Value = Array;
+  (void)Value;
+
+  // expected-error@+2 {{no matching constructor}}
+  sycl::accessor<int, 1, sycl::access_mode::read_write, sycl::target::local>
+      NoSize(CGH);
 }
 
 void testConstDataT(sycl::handler &CGH) {
