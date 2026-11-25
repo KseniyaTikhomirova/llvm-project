@@ -47,6 +47,7 @@ void checkNDRangeAndThrow(const sycl::nd_range<Dims> &ExecutionRange) {
 /// restricts the arguments of a kernel.
 enum class KernelLaunchKind { SingleTask, Range, NDRange };
 
+/// \internal
 /// The kernel object passed to a kernel entry point. Carries the form of the
 /// invocation to sycl_kernel_launch, which only receives the entry point's
 /// parameters.
@@ -78,10 +79,8 @@ protected:
         KernelObject<KernelType, KernelLaunchKind::SingleTask>{KernelFunc});
   }
 
-  // TODO: take the kernel object by const reference in both entry points once
-  // the compiler passes a mutable device kernel object to
-  // sycl_reify_kernel_parameters for a const one.
-  // Until then the by-value parameter keeps it mutable on device.
+  // TODO: take the kernel object by const reference in both entry points.
+  // submitKernelImpl then needs to take a pointer to const argument data.
   template <typename KernelName, typename KernelObjT>
 #ifdef SYCL_LANGUAGE_VERSION
   [[clang::sycl_kernel_entry_point(KernelName)]]
@@ -105,13 +104,15 @@ protected:
                   "sycl_kernel_launch expects only 1 argument now: the "
                   "callable object passed to kernel invocation by the user.");
 
+    // The kernel object is the entry point's own copy of the user's kernel, so
+    // its local accessors can be updated in place.
     return [this, &KernelArgs...](const auto &...LocalAccessors) {
       auto &KernelObj = std::get<0>(std::tie(KernelArgs...));
       checkLocalAccessorUse<std::decay_t<decltype(KernelObj)>,
                             sizeof...(LocalAccessors)>();
 
       const std::size_t LocalMemSize =
-          LocalAccessorReifier::getBlockSize(LocalAccessors...);
+          LocalAccessorReifier::placeRegions(LocalAccessors...);
       static_cast<DerivedT *>(this)->submitKernelImpl(
           detail::getDeviceKernelInfo<typename KI::kernel_name>(
               KI::kernel_entry_point_name),
@@ -123,7 +124,7 @@ protected:
   // in the generated device entry point.
   template <typename KI, typename... Args>
   static auto sycl_reify_kernel_parameters(Args &...) {
-    return [](auto &...LocalAccessors) {
+    return [](const auto &...LocalAccessors) {
       LocalAccessorReifier::bind(LocalAccessors...);
     };
   }

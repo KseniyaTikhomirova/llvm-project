@@ -72,10 +72,10 @@ static_assert(__cplusplus >= 201703L, "Libsycl requires C++17 or later.");
 #  endif
 #endif // __SYCL2020_DEPRECATED
 
-// Marks a type whose objects in a kernel argument libsycl has to inspect before
-// the kernel is submitted and update at the start of the kernel (e.g. local
-// accessors). The compiler passes such subobjects to the callables returned by
-// sycl_kernel_launch and sycl_reify_kernel_parameters.
+// Marks a type whose objects in a kernel argument libsycl has to inspect and
+// update before the kernel is submitted (e.g. local accessors). The compiler
+// passes such subobjects to the callables returned by sycl_kernel_launch and
+// sycl_reify_kernel_parameters.
 #ifdef SYCL_LANGUAGE_VERSION
 #  define _LIBSYCL_REIFIED_KERNEL_PARAMETER                                    \
     [[clang::sycl_reified_kernel_parameter]]

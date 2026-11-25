@@ -19,7 +19,10 @@
 #include <gtest/gtest.h>
 
 #include <cstddef>
+#include <cstring>
 #include <functional>
+#include <tuple>
+#include <vector>
 
 using namespace sycl;
 using namespace ::testing;
@@ -221,9 +224,8 @@ TEST(DeprecatedLocalAccessor, RejectsPropertyOfAnotherClass) {
 }
 
 // The tests below check the size of the work-group local memory block that is
-// requested at launch for the local accessors of a kernel. The device lays out
-// the accessors in the same way, so the block size also reflects the alignment
-// of each accessor's region.
+// requested at launch for the local accessors of a kernel and how the
+// accessors share it.
 
 struct LocalMemKernel;
 struct LocalMemKernelInfo {
@@ -245,27 +247,68 @@ static void registerLocalMemKernel() {
 template <detail::KernelLaunchKind Kind>
 using KernelObjectT = detail::KernelObject<KernelData, Kind>;
 
-// Launches LocalMemKernel as an nd_range kernel with Accs as the local
-// accessors of the kernel object and returns the local memory size passed to
-// olLaunchKernel.
+// A kernel function object holding local accessors next to other data.
+template <typename... AccTs> struct AccessorKernel {
+  int Value;
+  std::tuple<AccTs...> Accs;
+};
+
+constexpr int KernelValue = 42;
+
+struct LaunchResult {
+  std::size_t LocalMemSize = 0;
+  // The bytes of each accessor in the kernel argument.
+  std::vector<std::vector<unsigned char>> AccessorBytes;
+};
+
+template <typename T> static std::vector<unsigned char> bytesOf(const T &Obj) {
+  const auto *Begin = reinterpret_cast<const unsigned char *>(&Obj);
+  return {Begin, Begin + sizeof(T)};
+}
+
+// Launches LocalMemKernel as an nd_range kernel whose kernel object holds Accs,
+// passing them to the callable returned by sycl_kernel_launch as the compiler
+// does.
+template <typename... AccTs>
+static LaunchResult launchWithLocalAccessors(mock::MockWrapper &Mock,
+                                             detail::MockQueue &Q,
+                                             const AccTs &...Accs) {
+  registerLocalMemKernel();
+  using KernelT = detail::KernelObject<AccessorKernel<AccTs...>,
+                                       detail::KernelLaunchKind::NDRange>;
+  KernelT Kernel{{KernelValue, {Accs...}}};
+  KernelT Received{};
+  LaunchResult Result;
+  EXPECT_CALL(Mock.get(), olLaunchKernel(_, _, _, _, _, 1, _, _))
+      .WillOnce([&](ol_queue_handle_t, ol_device_handle_t, ol_symbol_handle_t,
+                    const ol_kernel_launch_size_args_t *Args,
+                    const ol_kernel_launch_prop_t *, size_t, void **ArgPtrs,
+                    const size_t *ArgSizes) -> ol_result_t {
+        Result.LocalMemSize = Args->DynSharedMemory;
+        EXPECT_EQ(ArgSizes[0], sizeof(KernelT));
+        std::memcpy(static_cast<void *>(&Received), ArgPtrs[0],
+                    sizeof(KernelT));
+        return OL_SUCCESS;
+      });
+  std::apply(
+      [&](AccTs &...Members) {
+        Q.sycl_kernel_launch<LocalMemKernelInfo>(Kernel)(Members...);
+      },
+      Kernel.Func.Accs);
+  EXPECT_EQ(Received.Func.Value, KernelValue);
+  Result.AccessorBytes = std::apply(
+      [](const AccTs &...Members) {
+        return std::vector<std::vector<unsigned char>>{bytesOf(Members)...};
+      },
+      Received.Func.Accs);
+  return Result;
+}
+
 template <typename... AccTs>
 static std::size_t launchAndCaptureLocalMemSize(mock::MockWrapper &Mock,
                                                 detail::MockQueue &Q,
                                                 const AccTs &...Accs) {
-  registerLocalMemKernel();
-  std::size_t Captured = 0;
-  EXPECT_CALL(Mock.get(), olLaunchKernel(_, _, _, _, _, 1, _, _))
-      .WillOnce([&Captured](ol_queue_handle_t, ol_device_handle_t,
-                            ol_symbol_handle_t,
-                            const ol_kernel_launch_size_args_t *Args,
-                            const ol_kernel_launch_prop_t *, size_t, void **,
-                            const size_t *) -> ol_result_t {
-        Captured = Args->DynSharedMemory;
-        return OL_SUCCESS;
-      });
-  KernelObjectT<detail::KernelLaunchKind::NDRange> Kernel{};
-  Q.sycl_kernel_launch<LocalMemKernelInfo>(Kernel)(Accs...);
-  return Captured;
+  return launchWithLocalAccessors(Mock, Q, Accs...).LocalMemSize;
 }
 
 TEST(LocalAccessorLaunch, NoLocalAccessors) {
@@ -343,6 +386,13 @@ TEST(LocalAccessorLaunch, CopiesShareRegion) {
   // nothing, so the block ends with the region of Other.
   EXPECT_EQ(launchAndCaptureLocalMemSize(Mock, Q, Acc, Byte, Copy, Other),
             RegionSize + alignof(int) + RegionSize);
+
+  // A copy is identical to the original in the kernel argument only if both
+  // got the same region.
+  const LaunchResult Result =
+      launchWithLocalAccessors(Mock, Q, Acc, Byte, Copy, ConstCopy);
+  EXPECT_EQ(Result.AccessorBytes[2], Result.AccessorBytes[0]);
+  EXPECT_EQ(Result.AccessorBytes[3], Result.AccessorBytes[0]);
 }
 
 // Distinct default constructed accessors get regions of their own, each

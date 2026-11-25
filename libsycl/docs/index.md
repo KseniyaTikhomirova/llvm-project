@@ -145,6 +145,7 @@ which doesn't currently support Windows.
   - `get_pointer`, `get_multi_ptr` and `accessor_ptr` are not implemented, to add once `multi_ptr` is supported
   - arrays of local accessors in a kernel object are not supported
   - the local memory block is only guaranteed to be 32-byte aligned, so a `DataT` with a stricter alignment may get a misaligned region
+  - the size of the local pointer stored in an accessor depends on the device target, so the host and device layouts differ on targets with 32-bit local pointers (not supported yet); to give the field a fixed size of 8 bytes
 
 - `property_list`: to fully implement and integrate with existing SYCL runtime classes supporting it
 

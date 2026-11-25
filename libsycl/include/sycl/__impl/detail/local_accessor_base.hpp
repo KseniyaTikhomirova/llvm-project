@@ -38,6 +38,7 @@ namespace detail {
 /// local accessor.
 _LIBSYCL_EXPORT std::uint64_t createLocalAccessorId() noexcept;
 
+/// \internal
 /// Helper for operator[] of a multi-dimensional accessor. Each subscript
 /// consumes one dimension, the last one yields the element reference.
 template <typename DataT, int Dimensions, int CurDim> class AccessorSubscript {
@@ -67,13 +68,14 @@ private:
 
 template <typename DataT, int Dimensions> class LocalAccessorBase;
 
+/// \internal
 /// Lays out the local accessors of one kernel invocation in the single block
 /// of work-group local memory allocated for that invocation.
 ///
-/// The host only computes the size of the block. The device points each
-/// accessor to its region at the start of the kernel. Both walk the accessors
-/// in the order the compiler passes them and use placeRegion(), so they agree
-/// on the layout.
+/// The layout is computed on host only. Each accessor in the kernel object
+/// records the offset of its region before the kernel is submitted, and at the
+/// start of the kernel the device turns the offset into a pointer to the
+/// region.
 ///
 /// Copies of one accessor in the kernel object share a single region, as SYCL
 /// 2020 4.5.2 requires a copy to behave as if it were the original instance.
@@ -82,25 +84,30 @@ template <typename DataT, int Dimensions> class LocalAccessorBase;
 /// accepts both local accessor classes deriving from it.
 class LocalAccessorReifier {
 public:
-  /// \return the size in bytes of the block that holds \p Accs, to request at
-  /// launch.
+  /// Places the regions of the local accessors of a kernel object and records
+  /// the offset of its region in each of them.
+  ///
+  /// \param Accs the local accessors of the kernel object, in the order the
+  /// compiler passes them.
+  /// \return the size in bytes of the block that holds the regions of \p Accs,
+  /// to request at launch.
   template <typename... AccTs>
-  static std::size_t getBlockSize(const AccTs &...Accs) {
+  static std::size_t placeRegions(const AccTs &...Accs) {
     BlockLayout<sizeof...(AccTs)> Layout;
-    (placeRegion(Accs, Layout), ...);
+    (setOffset(Accs, placeRegion(Accs, Layout)), ...);
     return Layout.BlockSize;
   }
 
   /// Points each of \p Accs to its region of the block, at the start of the
   /// kernel.
   template <typename... AccTs>
-  static void bind([[maybe_unused]] AccTs &...Accs) {
+  static void bind([[maybe_unused]] const AccTs &...Accs) noexcept {
 #ifdef __SYCL_DEVICE_ONLY__
-    // The work-group local memory allocated for the kernel invocation, its size
-    // is ol_kernel_launch_size_args_t::DynSharedMemory.
-    LocalBytePtrT Block = __builtin_sycl_dynamic_local_memory();
-    BlockLayout<sizeof...(AccTs)> Layout;
-    (bindOne(Accs, Block, Layout), ...);
+    // The work-group local memory block allocated for the kernel invocation,
+    // its size is ol_kernel_launch_size_args_t::DynSharedMemory.
+    unsigned char _LIBSYCL_LOCAL_AS *Block =
+        __builtin_sycl_dynamic_local_memory();
+    (bindOne(Accs, Block), ...);
 #endif
   }
 
@@ -109,7 +116,6 @@ private:
   template <std::size_t NumAccessors> struct BlockLayout {
     std::size_t BlockSize = 0;
     std::size_t NumRegions = 0;
-    // Identity of the accessor each region was placed for, and its offset.
     std::array<std::uint64_t, NumAccessors> Ids{};
     std::array<std::size_t, NumAccessors> Offsets{};
   };
@@ -150,16 +156,18 @@ private:
     return Offset;
   }
 
-#ifdef __SYCL_DEVICE_ONLY__
-  using LocalBytePtrT = unsigned char _LIBSYCL_LOCAL_AS *;
-
-  template <typename DataT, int Dimensions, std::size_t NumAccessors>
-  static void bindOne(LocalAccessorBase<DataT, Dimensions> &Acc,
-                      LocalBytePtrT Block, BlockLayout<NumAccessors> &Layout) {
-    using LocalPtrT = typename LocalAccessorBase<DataT, Dimensions>::LocalPtrT;
-    Acc.MData = reinterpret_cast<LocalPtrT>(Block + placeRegion(Acc, Layout));
+  template <typename DataT, int Dimensions>
+  static void setOffset(const LocalAccessorBase<DataT, Dimensions> &Acc,
+                        std::size_t Offset) noexcept {
+    Acc.MOffset = Offset;
   }
-#endif
+
+  template <typename DataT, int Dimensions>
+  static void bindOne(const LocalAccessorBase<DataT, Dimensions> &Acc,
+                      unsigned char _LIBSYCL_LOCAL_AS *Block) noexcept {
+    using LocalPtrT = typename LocalAccessorBase<DataT, Dimensions>::LocalPtrT;
+    Acc.MData = reinterpret_cast<LocalPtrT>(Block + Acc.MOffset);
+  }
 };
 
 /// \internal
@@ -167,10 +175,12 @@ private:
 /// sycl::accessor specialization for access::target::local.
 ///
 /// The class has a single definition and a single layout for host and device.
-/// On host MData is always nullptr, element access is not available and the
-/// object only records the requested allocation size and the identity of the
-/// accessor. At the start of the kernel the device points the accessor to its
-/// region of the kernel's local memory block, see LocalAccessorReifier.
+/// On host element access is not available and the object records the
+/// requested allocation size and the identity of the accessor. Before the
+/// kernel is submitted, the host records in the accessor the offset of its
+/// region of the kernel's local memory block, and at the start of the kernel
+/// the device points the accessor to its region, see
+/// LocalAccessorReifier.
 ///
 /// The base is parameterized on DataT and Dimensions only, so that both
 /// sycl::local_accessor and the deprecated sycl::accessor specialization for
@@ -227,8 +237,6 @@ public:
     return MRange;
   }
 
-  // SYCL 2020 defines no properties for a local accessor and the constructors
-  // reject any, so there is nothing to store and nothing to report.
   /// \return false, as a local accessor has no properties.
   template <typename Property> bool has_property() const noexcept {
     return false;
@@ -344,31 +352,43 @@ protected:
   template <typename OtherDataT>
   LocalAccessorBase(
       const LocalAccessorBase<OtherDataT, Dimensions> &Other) noexcept
-      : MData(Other.MData), MId(Other.MId), MRange(Other.MRange) {}
+      : MOffset(Other.MOffset), MId(Other.MId), MRange(Other.MRange),
+        MData(Other.MData) {}
 
   template <typename OtherDataT>
   bool
   isEqual(const LocalAccessorBase<OtherDataT, Dimensions> &Rhs) const noexcept {
-    // TODO: on device, assert that equal accessors refer to the same memory
-    // once device assertions are supported.
     return MId == Rhs.MId;
   }
 
   std::uint64_t getId() const noexcept { return MId; }
 
-  /// \return a generic pointer to the first element of this accessor's region.
+  /// \return a generic pointer to the first element of this accessor's region,
+  /// or nullptr on host.
   DataT *getPtr() const noexcept { return MData; }
 
 private:
-  // The region of the kernel's local memory block that belongs to this
-  // accessor. Set on device only, see LocalAccessorReifier.
-  LocalPtrT MData = nullptr;
+  // The offset and the pointer below are mutable, so that the region can be
+  // recorded in a const accessor, see LocalAccessorReifier.
 
-  // Identity of the accessor, copied to device with the kernel object. Used for
-  // comparison and as the value std::hash is computed from.
+  // Offset of this accessor's region in the kernel's local memory block. Set
+  // on host in the kernel object that is submitted.
+  mutable std::size_t MOffset = 0;
+
+  // Shared by the copies of an accessor, see createLocalAccessorId().
   std::uint64_t MId = 0;
 
   range<AdjustedDims> MRange;
+
+  // The region of this accessor, set on device at the start of the kernel.
+  // Declared last, so that a local pointer narrower than a host pointer does
+  // not move the other members.
+  // TODO: give the pointer a fixed size of 8 bytes, e.g. in an anonymous union
+  // with a std::uint64_t, so that the layout does not depend on the device
+  // target. Targets with 32-bit local pointers would otherwise get a 4-byte
+  // field whose tail padding a class deriving from the accessor may reuse on
+  // device but not on host.
+  mutable LocalPtrT MData = nullptr;
 
   template <typename, int> friend class LocalAccessorBase;
   friend class LocalAccessorReifier;
